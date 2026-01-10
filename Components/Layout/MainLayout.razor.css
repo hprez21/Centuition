@@ -1,0 +1,66 @@
+/* App Header - Using Bootstrap where possible */
+.app-header {
+    background: var(--app-surface-1);
+    height: 60px;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    border-bottom: 1px solid var(--app-border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    gap: 1rem;
+}
+
+.drawer-toggle-btn { color: var(--app-text); }
+.drawer-toggle-btn:hover { background-color: var(--app-surface-2); }
+
+.app-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--app-text);
+}
+.app-title .k-svg-icon { color: var(--app-accent); }
+
+/* Main Content Area */
+.app-main {
+    flex: 1;
+    overflow-y: auto;
+    background-color: var(--app-bg);
+}
+
+.content {
+    padding: 2rem 1.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+@media (max-width: 640.98px) {
+    .app-title span { display: none; }
+    .content { padding: 1rem; }
+}
+
+/* Blazor Error UI */
+#blazor-error-ui {
+    color-scheme: dark;
+    background: var(--app-surface-1);
+    border-top: 1px solid var(--app-border);
+    bottom: 0;
+    box-shadow: none;
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}

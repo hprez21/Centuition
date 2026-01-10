@@ -1,0 +1,653 @@
+@page "/finance/transactions"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Globalization
+@using CentuitionApp.Data
+@using CentuitionApp.Services
+@attribute [Authorize]
+@inject ITransactionService TransactionService
+@inject IAccountService AccountService
+@inject ICategoryService CategoryService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Transactions - Centuition</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h1 class="h2 mb-1">Transactions</h1>
+                    <p class="text-muted mb-0">View and manage your financial transactions</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                                   OnClick="@ExportToExcel"
+                                   Icon="@SvgIcon.FileExcel">
+                        Export
+                    </TelerikButton>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   OnClick="@OpenCreateDialog"
+                                   Icon="@SvgIcon.Plus">
+                        Add Transaction
+                    </TelerikButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Date Range</label>
+                    <TelerikDateRangePicker @bind-StartValue="@filterStartDate"
+                                            @bind-EndValue="@filterEndDate"
+                                            Format="yyyy-MM-dd" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <TelerikDropDownList Data="@transactionTypeOptions"
+                                         @bind-Value="@filterType"
+                                         TextField="Text"
+                                         ValueField="Value"
+                                         Width="100%" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Account</label>
+                    <TelerikDropDownList Data="@accountOptions"
+                                         @bind-Value="@filterAccountId"
+                                         TextField="Name"
+                                         ValueField="Id"
+                                         DefaultText="All Accounts"
+                                         Width="100%" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Category</label>
+                    <TelerikDropDownList Data="@categoryOptions"
+                                         @bind-Value="@filterCategoryId"
+                                         TextField="Name"
+                                         ValueField="Id"
+                                         DefaultText="All Categories"
+                                         Width="100%" />
+                </div>
+                <div class="col-md-3">
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   OnClick="@ApplyFilters"
+                                   Icon="@SvgIcon.Filter">
+                        Apply Filters
+                    </TelerikButton>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                                   OnClick="@ClearFilters"
+                                   Icon="@SvgIcon.FilterClear">
+                        Clear
+                    </TelerikButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4 g-3">
+        <div class="col-md-4">
+            <SummaryCard Title="Total Income"
+                         Value="@filteredIncome"
+                         BorderColor="success" />
+        </div>
+        <div class="col-md-4">
+            <SummaryCard Title="Total Expenses"
+                         Value="@filteredExpenses"
+                         BorderColor="danger" />
+        </div>
+        <div class="col-md-4">
+            <SummaryCard Title="Net"
+                         Value="@filteredNet"
+                         BorderColor="info"
+                         DynamicValueColor="true" />
+        </div>
+    </div>
+
+    <!-- Transactions Grid -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <TelerikGrid @ref="@gridRef"
+                         Data="@transactions"
+                         Pageable="true"
+                         PageSize="15"
+                         Sortable="true"
+                         FilterMode="@GridFilterMode.None"
+                         Groupable="true"
+                         Resizable="true"
+                         SelectionMode="@GridSelectionMode.Multiple"
+                         @bind-SelectedItems="@selectedTransactions"
+                         OnDelete="@DeleteTransaction"
+                         ConfirmDelete="true"
+                         Height="600px">
+                <GridToolBarTemplate>
+                    <GridSearchBox DebounceDelay="200" Placeholder="Search transactions..." Width="300px" />
+                    @if (selectedTransactions.Any())
+                    {
+                        <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Error"
+                                       OnClick="@DeleteSelectedTransactions"
+                                       Icon="@SvgIcon.Trash">
+                            Delete Selected (@selectedTransactions.Count())
+                        </TelerikButton>
+                    }
+                </GridToolBarTemplate>
+                <GridColumns>
+                    <GridCheckboxColumn Width="50px" SelectAll="true" />
+                    <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="120px">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                            }
+                            <span>@item.Date.ToString("MMM dd, yyyy")</span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Transaction.Type)" Title="Type" Width="100px">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                            }
+                            <span class="badge @FinanceUIHelpers.GetTransactionTypeBadgeClass(item.Type)">
+                                @item.Type.ToString()
+                            </span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Transaction.Description)" Title="Description">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                            }
+                            <div>
+                                <span class="fw-medium">@item.Description</span>
+                                @if (!string.IsNullOrEmpty(item.Notes))
+                                {
+                                    <br />
+                                    <small class="text-muted">@(item.Notes.Length > 50 ? item.Notes.Substring(0, 50) + "..." : item.Notes)</small>
+                                }
+                            </div>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Title="Category" Width="150px">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                            }
+                            @if (item.Category != null)
+                            {
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle me-2" 
+                                         style="width: 12px; height: 12px; background-color: @item.Category.Color;"></div>
+                                    <span>@item.Category.Name</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Title="Account" Width="150px">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                            }
+                            <span>@item.Account?.Name</span>
+                            @if (item.Type == TransactionType.Transfer && item.DestinationAccount != null)
+                            {
+                                <br />
+                                <small class="text-muted">→ @item.DestinationAccount.Name</small>
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Transaction.Amount)" Title="Amount" Width="130px" TextAlign="@ColumnTextAlign.Right">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                                var color = item.Type == TransactionType.Income ? "text-success" :
+                                            item.Type == TransactionType.Expense ? "text-danger" : "text-info";
+                                var sign = item.Type == TransactionType.Income ? "+" :
+                                           item.Type == TransactionType.Expense ? "-" : "";
+                            }
+                            <span class="@color fw-bold">@sign@item.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Transaction.IsReconciled)" Title="Reconciled" Width="100px" TextAlign="@ColumnTextAlign.Center">
+                        <Template>
+                            @{
+                                var item = (Transaction)context;
+                            }
+                            @if (item.IsReconciled)
+                            {
+                                <span title="Reconciled" class="text-success">
+                                    <TelerikSvgIcon Icon="@SvgIcon.CheckCircle" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                                </span>
+                            }
+                            else
+                            {
+                                <span title="Not reconciled" class="text-secondary">
+                                    <TelerikSvgIcon Icon="@SvgIcon.Clock" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                                </span>
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridCommandColumn Width="180px" Title="Actions">
+                        <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@EditTransactionHandler">Edit</GridCommandButton>
+                        <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                    </GridCommandColumn>
+                </GridColumns>
+                <GridExport>
+                    <GridExcelExport FileName="Transactions" AllPages="true" />
+                </GridExport>
+            </TelerikGrid>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Transaction Dialog -->
+<TelerikWindow @bind-Visible="@showDialog"
+               Width="600px"
+               Modal="true">
+    <WindowTitle>
+        @(isEditing ? "Edit Transaction" : "Add Transaction")
+    </WindowTitle>
+    <WindowContent>
+        <EditForm Model="@editTransaction" OnValidSubmit="@SaveTransaction">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Transaction Type</label>
+                <TelerikButtonGroup SelectionMode="@ButtonGroupSelectionMode.Single" Class="w-100">
+                    <ButtonGroupToggleButton Selected="@(editTransaction.Type == TransactionType.Expense)"
+                                             SelectedChanged="@((bool selected) => { if(selected) OnTypeChanged(TransactionType.Expense); })"
+                                             Class="flex-fill">
+                        <TelerikSvgIcon Icon="@SvgIcon.ArrowDown" /> Expense
+                    </ButtonGroupToggleButton>
+                    <ButtonGroupToggleButton Selected="@(editTransaction.Type == TransactionType.Income)"
+                                             SelectedChanged="@((bool selected) => { if(selected) OnTypeChanged(TransactionType.Income); })"
+                                             Class="flex-fill">
+                        <TelerikSvgIcon Icon="@SvgIcon.ArrowUp" /> Income
+                    </ButtonGroupToggleButton>
+                    <ButtonGroupToggleButton Selected="@(editTransaction.Type == TransactionType.Transfer)"
+                                             SelectedChanged="@((bool selected) => { if(selected) OnTypeChanged(TransactionType.Transfer); })"
+                                             Class="flex-fill">
+                        <TelerikSvgIcon Icon="@SvgIcon.ArrowsSwap" /> Transfer
+                    </ButtonGroupToggleButton>
+                </TelerikButtonGroup>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Amount <span class="text-danger">*</span></label>
+                    <TelerikNumericTextBox @bind-Value="@editTransaction.Amount"
+                                           Format="$#,##0.00"
+                                           Min="0"
+                                           Placeholder="0.00"
+                                           Width="100%" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    <TelerikDatePicker @bind-Value="@editTransaction.Date"
+                                       Format="yyyy-MM-dd"
+                                       Width="100%" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description <span class="text-danger">*</span></label>
+                <TelerikTextBox @bind-Value="@editTransaction.Description"
+                                Placeholder="Enter transaction description"
+                                Width="100%" />
+                <ValidationMessage For="@(() => editTransaction.Description)" class="text-danger small" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">@(editTransaction.Type == TransactionType.Transfer ? "From Account" : "Account") <span class="text-danger">*</span></label>
+                    <TelerikDropDownList Data="@accounts"
+                                         @bind-Value="@editTransaction.AccountId"
+                                         TextField="Name"
+                                         ValueField="Id"
+                                         DefaultText="Select account"
+                                         Width="100%" />
+                </div>
+                @if (editTransaction.Type == TransactionType.Transfer)
+                {
+                    <div class="col-md-6">
+                        <label class="form-label">To Account <span class="text-danger">*</span></label>
+                        <TelerikDropDownList Data="@accounts.Where(a => a.Id != editTransaction.AccountId)"
+                                             @bind-Value="@destinationAccountId"
+                                             TextField="Name"
+                                             ValueField="Id"
+                                             DefaultText="Select destination"
+                                             Width="100%" />
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-6">
+                        <label class="form-label">Category</label>
+                        <TelerikDropDownList Data="@GetCategoriesForType()"
+                                             @bind-Value="@editTransaction.CategoryId"
+                                             TextField="Name"
+                                             ValueField="Id"
+                                             DefaultText="Select category"
+                                             Width="100%" />
+                    </div>
+                }
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <TelerikTextArea @bind-Value="@editTransaction.Notes"
+                                 Placeholder="Additional notes (optional)"
+                                 Rows="2"
+                                 Width="100%" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tags</label>
+                <TelerikTextBox @bind-Value="@editTransaction.Tags"
+                                Placeholder="Enter tags separated by commas"
+                                Width="100%" />
+                <small class="text-muted">Separate multiple tags with commas</small>
+            </div>
+
+            <div class="mb-3">
+                <TelerikCheckBox @bind-Value="@editTransaction.IsReconciled" Id="isReconciled" />
+                <label for="isReconciled" class="ms-2">Mark as reconciled</label>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <TelerikButton ButtonType="@ButtonType.Button"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@CloseDialog">
+                    Cancel
+                </TelerikButton>
+                <TelerikButton ButtonType="@ButtonType.Submit"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               Icon="@SvgIcon.Save">
+                    @(isEditing ? "Update" : "Save")
+                </TelerikButton>
+            </div>
+        </EditForm>
+    </WindowContent>
+</TelerikWindow>
+
+<TelerikNotification @ref="@notificationRef" Class="notification-container" />
+
+@code {
+    private string? userId;
+    private List<Transaction> transactions = new();
+    private List<Account> accounts = new();
+    private List<Category> categories = new();
+    private IEnumerable<Transaction> selectedTransactions = Enumerable.Empty<Transaction>();
+    private TelerikGrid<Transaction>? gridRef;
+    
+    private DateTime? filterStartDate;
+    private DateTime? filterEndDate;
+    private TransactionType? filterType;
+    private int? filterAccountId;
+    private int? filterCategoryId;
+    
+    private List<DropDownOption> transactionTypeOptions = new()
+    {
+        new DropDownOption { Value = null, Text = "All Types" },
+        new DropDownOption { Value = TransactionType.Expense, Text = "Expense" },
+        new DropDownOption { Value = TransactionType.Income, Text = "Income" },
+        new DropDownOption { Value = TransactionType.Transfer, Text = "Transfer" }
+    };
+    private List<Account> accountOptions = new();
+    private List<Category> categoryOptions = new();
+    
+    private decimal filteredIncome;
+    private decimal filteredExpenses;
+    private decimal filteredNet;
+    
+    private bool showDialog;
+    private bool isEditing;
+    private Transaction editTransaction = new();
+    private int? destinationAccountId;
+
+    private TelerikNotification? notificationRef;
+
+    private class DropDownOption
+    {
+        public TransactionType? Value { get; set; }
+        public string Text { get; set; } = string.Empty;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrEmpty(userId))
+        {            
+            filterStartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            filterEndDate = filterStartDate.Value.AddMonths(1).AddDays(-1);
+
+            await LoadReferenceData();
+            await LoadTransactions();
+        }
+    }
+
+    private async Task LoadReferenceData()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        accounts = await AccountService.GetAllAccountsAsync(userId);
+        categories = await CategoryService.GetAllCategoriesAsync(userId);
+
+        accountOptions = accounts;
+        categoryOptions = categories;
+    }
+
+    private async Task LoadTransactions()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        transactions = await TransactionService.GetTransactionsAsync(
+            userId,
+            filterStartDate,
+            filterEndDate,
+            filterCategoryId,
+            filterAccountId,
+            filterType
+        );
+        
+        filteredIncome = transactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount);
+        filteredExpenses = transactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount);
+        filteredNet = filteredIncome - filteredExpenses;
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadTransactions();
+    }
+
+    private async Task ClearFilters()
+    {
+        filterStartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        filterEndDate = filterStartDate.Value.AddMonths(1).AddDays(-1);
+        filterType = null;
+        filterAccountId = null;
+        filterCategoryId = null;
+        await LoadTransactions();
+    }
+
+    private void OpenCreateDialog()
+    {
+        isEditing = false;
+        editTransaction = new Transaction
+        {
+            Date = DateTime.Today,
+            Type = TransactionType.Expense,
+            UserId = userId ?? string.Empty,
+            AccountId = accounts.FirstOrDefault()?.Id ?? 0
+        };
+        destinationAccountId = null;
+        showDialog = true;
+    }
+
+    private async Task EditTransactionHandler(GridCommandEventArgs args)
+    {
+        var transaction = (Transaction)args.Item;
+        
+        isEditing = true;
+        editTransaction = new Transaction
+        {
+            Id = transaction.Id,
+            Amount = transaction.Amount,
+            Type = transaction.Type,
+            Description = transaction.Description,
+            Notes = transaction.Notes,
+            Date = transaction.Date,
+            AccountId = transaction.AccountId,
+            DestinationAccountId = transaction.DestinationAccountId,
+            CategoryId = transaction.CategoryId,
+            Tags = transaction.Tags,
+            IsReconciled = transaction.IsReconciled,
+            UserId = transaction.UserId
+        };
+        destinationAccountId = transaction.DestinationAccountId;
+        showDialog = true;
+        
+        await Task.CompletedTask;
+    }
+
+    private async Task DeleteTransaction(GridCommandEventArgs args)
+    {
+        var transaction = (Transaction)args.Item;
+        
+        if (string.IsNullOrEmpty(userId)) return;
+
+        var result = await TransactionService.DeleteTransactionAsync(transaction.Id, userId);
+        
+        if (result)
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = "Transaction deleted successfully!",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                CloseAfter = 3000
+            });
+            await LoadTransactions();
+        }
+        else
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = "Failed to delete transaction.",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Error,
+                CloseAfter = 3000
+            });
+        }
+    }
+
+    private async Task DeleteSelectedTransactions()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        foreach (var transaction in selectedTransactions)
+        {
+            await TransactionService.DeleteTransactionAsync(transaction.Id, userId);
+        }
+
+        notificationRef?.Show(new NotificationModel
+        {
+            Text = $"{selectedTransactions.Count()} transactions deleted!",
+            ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+            CloseAfter = 3000
+        });
+
+        selectedTransactions = Enumerable.Empty<Transaction>();
+        await LoadTransactions();
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+    }
+
+    private void OnTypeChanged(TransactionType type)
+    {
+        editTransaction.Type = type;
+        if (type == TransactionType.Transfer)
+        {
+            editTransaction.CategoryId = null;
+        }
+        else
+        {
+            destinationAccountId = null;
+        }
+    }
+
+    private List<Category> GetCategoriesForType()
+    {
+        var categoryType = editTransaction.Type == TransactionType.Income ? CategoryType.Income : CategoryType.Expense;
+        return categories.Where(c => c.Type == categoryType).ToList();
+    }
+
+    private async Task SaveTransaction()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        editTransaction.UserId = userId;
+        if (editTransaction.Type == TransactionType.Transfer)
+        {
+            editTransaction.DestinationAccountId = destinationAccountId;
+            editTransaction.CategoryId = null;
+        }
+        else
+        {
+            editTransaction.DestinationAccountId = null;
+        }
+
+        try
+        {
+            if (isEditing)
+            {
+                await TransactionService.UpdateTransactionAsync(editTransaction);
+                notificationRef?.Show(new NotificationModel
+                {
+                    Text = "Transaction updated successfully!",
+                    ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                    CloseAfter = 3000
+                });
+            }
+            else
+            {
+                await TransactionService.CreateTransactionAsync(editTransaction);
+                notificationRef?.Show(new NotificationModel
+                {
+                    Text = "Transaction created successfully!",
+                    ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                    CloseAfter = 3000
+                });
+            }
+
+            showDialog = false;
+            await LoadTransactions();
+        }
+        catch (Exception ex)
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = $"Error: {ex.Message}",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Error,
+                CloseAfter = 5000
+            });
+        }
+    }
+
+    private async Task ExportToExcel()
+    {        
+        await gridRef.SaveAsExcelFileAsync();
+    }
+}

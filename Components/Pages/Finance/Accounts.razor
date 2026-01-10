@@ -1,0 +1,396 @@
+@page "/finance/accounts"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Globalization
+@using CentuitionApp.Data
+@using CentuitionApp.Services
+@attribute [Authorize]
+@inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Accounts - Centuition</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">Accounts</h1>
+                    <p class="text-muted mb-0">Manage your financial accounts</p>
+                </div>
+                <div>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   OnClick="@OpenCreateDialog"
+                                   Icon="@SvgIcon.Plus">
+                        Add Account
+                    </TelerikButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4 g-3">
+        @foreach (var group in accountsByType)
+        {
+            <div class="col-md-4 col-lg-3">
+                <SummaryCard Title="@group.Key.ToString()"
+                             Value="@group.Value"
+                             BorderColor=""
+                             DynamicValueColor="true"
+                             Subtitle="@($"{accounts.Count(a => a.AccountType == group.Key)} account(s)")"
+                             FullHeight="true" />
+            </div>
+        }
+    </div>
+
+    <!-- Accounts Grid -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <TelerikGrid Data="@accounts"
+                         Pageable="true"
+                         PageSize="10"
+                         Sortable="true"
+                         FilterMode="@GridFilterMode.FilterMenu"
+                         Groupable="true"
+                         Resizable="true"
+                         OnDelete="@DeleteAccount"
+                         ConfirmDelete="true"
+                         Height="500px">
+                <GridToolBarTemplate>
+                    <GridSearchBox DebounceDelay="200" Placeholder="Search accounts..." Width="300px" />
+                </GridToolBarTemplate>
+                <GridColumns>
+                    <GridColumn Field="@nameof(Account.Name)" Title="Account Name" Width="200px">
+                        <Template>
+                            @{
+                                var account = (Account)context;
+                            }
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle me-2 d-flex align-items-center justify-content-center"
+                                     style="width: 32px; height: 32px; background-color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)20;">
+                                    <span style="color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)">
+                                        <TelerikSvgIcon Icon="@FinanceUIHelpers.GetAccountIcon(account.AccountType)"
+                                                        Size="@ThemeConstants.SvgIcon.Size.Small" />
+                                    </span>
+                                </div>
+                                <span class="fw-medium">@account.Name</span>
+                            </div>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Account.AccountType)" Title="Type" Width="140px">
+                        <Template>
+                            @{
+                                var account = (Account)context;
+                            }
+                            <span class="badge @FinanceUIHelpers.GetAccountTypeBadgeClass(account.AccountType)">
+                                @account.AccountType.ToString()
+                            </span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Account.InitialBalance)" Title="Initial Balance" Width="150px" TextAlign="@ColumnTextAlign.Right">
+                        <Template>
+                            @{
+                                var account = (Account)context;
+                            }
+                            <span>@account.InitialBalance.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Account.CurrentBalance)" Title="Current Balance" Width="150px" TextAlign="@ColumnTextAlign.Right">
+                        <Template>
+                            @{
+                                var account = (Account)context;
+                            }
+                            <span class="@(account.CurrentBalance >= 0 ? "text-success" : "text-danger") fw-bold">
+                                @account.CurrentBalance.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                            </span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Account.Currency)" Title="Currency" Width="100px" />
+                    <GridColumn Field="@nameof(Account.IsActive)" Title="Status" Width="100px">
+                        <Template>
+                            @{
+                                var account = (Account)context;
+                            }
+                            <span class="badge @(account.IsActive ? "bg-success" : "bg-secondary")">
+                                @(account.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Account.IncludeInTotal)" Title="In Total" Width="100px">
+                        <Template>
+                            @{
+                                var account = (Account)context;
+                            }
+                            @if (account.IncludeInTotal)
+                            {
+                                <TelerikSvgIcon Icon="@SvgIcon.Check" ThemeColor="@ThemeConstants.SvgIcon.ThemeColor.Success" />
+                            }
+                            else
+                            {
+                                <TelerikSvgIcon Icon="@SvgIcon.X" ThemeColor="@ThemeConstants.SvgIcon.ThemeColor.Error" />
+                            }
+                        </Template>
+                    </GridColumn>
+                    <GridColumn Field="@nameof(Account.Description)" Title="Description" />
+                    <GridCommandColumn Width="180px" Title="Actions">
+                        <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@EditAccountHandler">Edit</GridCommandButton>
+                        <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                    </GridCommandColumn>
+                </GridColumns>
+            </TelerikGrid>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Account Dialog -->
+<TelerikWindow @bind-Visible="@showDialog"
+               Width="500px"
+               Modal="true">
+    <WindowTitle>
+        @(isEditing ? "Edit Account" : "Create Account")
+    </WindowTitle>
+    <WindowContent>
+        <EditForm Model="@editAccount" OnValidSubmit="@SaveAccount">
+            <DataAnnotationsValidator />
+            
+            <div class="mb-3">
+                <label class="form-label">Account Name <span class="text-danger">*</span></label>
+                <TelerikTextBox @bind-Value="@editAccount.Name"
+                                Placeholder="e.g., Main Checking"
+                                Width="100%" />
+                <ValidationMessage For="@(() => editAccount.Name)" class="text-danger small" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Account Type <span class="text-danger">*</span></label>
+                <TelerikDropDownList Data="@accountTypes"
+                                     @bind-Value="@editAccount.AccountType"
+                                     Width="100%" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Initial Balance</label>
+                    <TelerikNumericTextBox @bind-Value="@editAccount.InitialBalance"
+                                           Format="$#,##0.00"
+                                           Width="100%"
+                                           Enabled="@(!isEditing)" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Currency</label>
+                    <TelerikDropDownList Data="@currencies"
+                                         @bind-Value="@editAccount.Currency"
+                                         Width="100%" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <TelerikTextArea @bind-Value="@editAccount.Description"
+                                 Placeholder="Optional description"
+                                 Rows="2"
+                                 Width="100%" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Color</label>
+                <TelerikColorPicker @bind-Value="@accountColor"
+                                    View="@ColorPickerView.Palette" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-6">
+                    <TelerikCheckBox @bind-Value="@editAccount.IsActive" Id="isActive" />
+                    <label for="isActive" class="ms-2">Active Account</label>
+                </div>
+                <div class="col-6">
+                    <TelerikCheckBox @bind-Value="@editAccount.IncludeInTotal" Id="includeInTotal" />
+                    <label for="includeInTotal" class="ms-2">Include in Total</label>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <TelerikButton ButtonType="@ButtonType.Button"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@CloseDialog">
+                    Cancel
+                </TelerikButton>
+                <TelerikButton ButtonType="@ButtonType.Submit"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               Icon="@SvgIcon.Save">
+                    @(isEditing ? "Update" : "Create")
+                </TelerikButton>
+            </div>
+        </EditForm>
+    </WindowContent>
+</TelerikWindow>
+
+<TelerikNotification @ref="@notificationRef" Class="notification-container" />
+
+@code {
+    private string? userId;
+    private List<Account> accounts = new();
+    private Dictionary<AccountType, decimal> accountsByType = new();
+    
+    private bool showDialog;
+    private bool isEditing;
+    private Account editAccount = new();
+    private string accountColor = FinanceUIHelpers.DefaultAccountColor;
+    
+    private List<AccountType> accountTypes = Enum.GetValues<AccountType>().ToList();
+    private List<string> currencies = new() { "USD", "EUR", "GBP", "CAD", "AUD", "MXN", "JPY", "CNY" };
+
+    private TelerikNotification? notificationRef;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            await LoadAccounts();
+        }
+    }
+
+    private async Task LoadAccounts()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+        
+        accounts = await AccountService.GetAllAccountsAsync(userId);
+        accountsByType = await AccountService.GetBalancesByTypeAsync(userId);
+    }
+
+    private void OpenCreateDialog()
+    {
+        isEditing = false;
+        editAccount = new Account
+        {
+            UserId = userId ?? string.Empty,
+            IsActive = true,
+            IncludeInTotal = true,
+            Currency = "USD",
+            InitialBalance = 0
+        };
+        accountColor = FinanceUIHelpers.DefaultAccountColor;
+        showDialog = true;
+    }
+
+    private async Task EditAccountHandler(GridCommandEventArgs args)
+    {
+        var account = (Account)args.Item;                
+                
+        isEditing = true;
+        editAccount = new Account
+        {
+            Id = account.Id,
+            Name = account.Name,
+            Description = account.Description,
+            AccountType = account.AccountType,
+            InitialBalance = account.InitialBalance,
+            CurrentBalance = account.CurrentBalance,
+            Currency = account.Currency,
+            Color = account.Color,
+            Icon = account.Icon,
+            IsActive = account.IsActive,
+            IncludeInTotal = account.IncludeInTotal,
+            UserId = account.UserId
+        };
+        accountColor = account.Color ?? FinanceUIHelpers.DefaultAccountColor;
+        showDialog = true;
+        
+        await Task.CompletedTask;
+    }
+
+    private async Task DeleteAccount(GridCommandEventArgs args)
+    {
+        var account = (Account)args.Item;
+        
+        if (string.IsNullOrEmpty(userId)) return;
+
+        var result = await AccountService.DeleteAccountAsync(account.Id, userId);
+        
+        if (result)
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = "Account deleted successfully!",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                CloseAfter = 3000
+            });
+            await LoadAccounts();
+        }
+        else
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = "Failed to delete account.",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Error,
+                CloseAfter = 3000
+            });
+        }
+    }
+
+    private void CloseDialog()
+    {
+        showDialog = false;
+    }
+
+    private async Task SaveAccount()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        editAccount.Color = accountColor;
+        editAccount.UserId = userId;
+
+        try
+        {
+            if (isEditing)
+            {
+                await AccountService.UpdateAccountAsync(editAccount);
+                notificationRef?.Show(new NotificationModel
+                {
+                    Text = "Account updated successfully!",
+                    ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                    CloseAfter = 3000
+                });
+            }
+            else
+            {
+                await AccountService.CreateAccountAsync(editAccount);
+                notificationRef?.Show(new NotificationModel
+                {
+                    Text = "Account created successfully!",
+                    ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                    CloseAfter = 3000
+                });
+            }
+
+            showDialog = false;
+            await LoadAccounts();
+        }
+        catch (InvalidOperationException ex)
+        {            
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = ex.Message,
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Warning,
+                CloseAfter = 5000
+            });
+        }
+        catch (Exception ex)
+        {            
+            var errorMessage = ex.InnerException?.Message ?? ex.Message;
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = $"Unexpected error: {errorMessage}",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Error,
+                CloseAfter = 7000
+            });
+        }
+    }
+}

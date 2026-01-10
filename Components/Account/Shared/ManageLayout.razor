@@ -1,0 +1,18 @@
+﻿@inherits LayoutComponentBase
+@layout CentuitionApp.Components.Layout.MainLayout
+
+<div class="manage-container">
+    <div class="manage-sidebar">
+        <div class="manage-sidebar-header">
+            <div class="manage-logo">
+                <UserIcon Size="32" />
+            </div>
+            <h2 class="manage-sidebar-title">Account Settings</h2>
+            <p class="manage-sidebar-subtitle">Manage your profile and preferences</p>
+        </div>
+        <ManageNavMenu />
+    </div>
+    <div class="manage-content">
+        @Body
+    </div>
+</div>

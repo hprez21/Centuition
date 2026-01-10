@@ -1,0 +1,105 @@
+/* App Drawer Styling - Telerik Customization */
+::deep .app-drawer { --drawer-bg: var(--app-surface-1); }
+
+::deep .app-drawer .k-drawer {
+    background: var(--drawer-bg);
+    color: var(--app-text);
+    height: 100vh;
+    border-right: 1px solid var(--app-border);
+    transition: width 0.3s ease;
+}
+
+::deep .app-drawer .k-drawer-items { padding: 0; }
+::deep .app-drawer .k-drawer-container { height: 100vh; }
+::deep .app-drawer .k-drawer-content {
+    background-color: var(--app-bg);
+    height: 100vh;
+    overflow-y: auto;
+}
+
+/* Drawer Item Styling */
+::deep .app-drawer .k-drawer-item {
+    color: var(--app-text);
+    border-radius: 0;
+    margin: 0;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+::deep .app-drawer .k-drawer-item:hover {
+    background-color: var(--app-surface-2);
+    color: var(--app-text);
+}
+::deep .app-drawer .k-drawer-item.k-selected {
+    background-color: var(--app-accent);
+    color: var(--app-bg);
+    border-left-color: var(--app-accent);
+    font-weight: 500;
+}
+
+/* Icons inherit color */
+::deep .app-drawer .k-drawer-item .k-svg-icon,
+::deep .app-drawer .k-drawer-item:hover .k-svg-icon,
+::deep .app-drawer .k-drawer-item.k-selected .k-svg-icon { color: currentColor; }
+
+/* Mini Mode */
+::deep .app-drawer .k-drawer.k-drawer-collapsed .k-drawer-item {
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+}
+::deep .app-drawer .k-drawer.k-drawer-collapsed .drawer-section-header { display: none; }
+
+/* Separator */
+::deep .app-drawer .k-drawer-separator {
+    height: 1px;
+    background-color: var(--app-border);
+    margin: 0.75rem 1rem;
+}
+
+/* Drawer Item Content */
+.drawer-item-content { display: flex; align-items: center; gap: 0.75rem; }
+.drawer-item-text { font-size: 0.95rem; white-space: nowrap; }
+
+/* Section Headers */
+.drawer-section-header {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--app-text-muted);
+    padding: 1.25rem 1rem 0.5rem 1rem;
+    margin-top: 0.5rem;
+}
+.drawer-section-header:first-child { margin-top: 0; }
+
+/* NavLink Styling */
+::deep .drawer-nav-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    width: 100%;
+}
+::deep .drawer-nav-link:hover { text-decoration: none; color: inherit; }
+::deep .drawer-nav-link.active { font-weight: inherit; }
+
+/* Logout Button Styling */
+::deep .drawer-logout-button {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+}
+::deep .drawer-logout-button:hover { background: none; }
+
+/* Custom Scrollbar for Drawer */
+::deep .app-drawer .k-drawer-items::-webkit-scrollbar { width: 6px; }
+::deep .app-drawer .k-drawer-items::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.25); }
+::deep .app-drawer .k-drawer-items::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 3px;
+}
+::deep .app-drawer .k-drawer-items::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.28); }

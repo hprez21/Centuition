@@ -1,0 +1,1154 @@
+@page "/"
+@page "/finance"
+@page "/finance/dashboard"
+@attribute [Authorize]
+@inject IAccountService AccountService
+@inject ITransactionService TransactionService
+@inject ICategoryService CategoryService
+@inject IBudgetService BudgetService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject IChatClient ChatClient
+@inject ApplicationDbContext DbContext
+@rendermode InteractiveServer
+@using System.Text.Json
+
+<PageTitle>Dashboard - Centuition</PageTitle>
+
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h1 class="h2 mb-1">Financial Dashboard</h1>
+                    <p class="text-muted mb-0">
+                        @if (selectedPeriod == "month")
+                        {
+                            <span>Showing data for @selectedDate.ToString("MMMM yyyy")</span>
+                        }
+                        else if (selectedPeriod == "year")
+                        {
+                            <span>Showing data for year @selectedDate.Year</span>
+                        }
+                        else
+                        {
+                            <span>Showing data from @(periodStartDate?.ToString("MMM d, yyyy") ?? "") to @(periodEndDate?.ToString("MMM d, yyyy") ?? "")</span>
+                        }
+                    </p>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <!-- Period Selector -->
+                    <div class="d-flex align-items-center gap-2 bg-light rounded p-2">
+                        <TelerikButtonGroup SelectionMode="@ButtonGroupSelectionMode.Single">
+                            <ButtonGroupToggleButton Selected="@(selectedPeriod == "month")" 
+                                                      OnClick="@(() => ChangePeriod("month"))">
+                                Month
+                            </ButtonGroupToggleButton>
+                            <ButtonGroupToggleButton Selected="@(selectedPeriod == "year")" 
+                                                      OnClick="@(() => ChangePeriod("year"))">
+                                Year
+                            </ButtonGroupToggleButton>
+                            <ButtonGroupToggleButton Selected="@(selectedPeriod == "custom")" 
+                                                      OnClick="@(() => ChangePeriod("custom"))">
+                                Custom
+                            </ButtonGroupToggleButton>
+                        </TelerikButtonGroup>
+                    </div>
+
+                    @if (selectedPeriod == "month")
+                    {
+                        <TelerikDatePicker @bind-Value="@selectedDate"
+                                           Format="MMMM yyyy"
+                                           BottomView="@CalendarView.Year"
+                                           Width="160px"
+                                           OnChange="@OnDateChanged" />
+                    }
+                    else if (selectedPeriod == "year")
+                    {
+                        <TelerikNumericTextBox @bind-Value="@selectedYear"
+                                               Min="2020"
+                                               Max="2030"
+                                               Width="100px"
+                                               OnChange="@OnYearChanged" />
+                    }
+                    else if (selectedPeriod == "custom")
+                    {
+                        <div style="width: 280px;">
+                            <TelerikDateRangePicker @bind-StartValue="@periodStartDate"
+                                                    @bind-EndValue="@periodEndDate"
+                                                    OnChange="@OnCustomRangeChanged" />
+                        </div>
+                    }
+
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   OnClick="@OpenQuickAddTransaction"
+                                   Icon="@SvgIcon.Plus">
+                        Add Transaction
+                    </TelerikButton>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Warning"
+                                   OnClick="@OpenResetDialog"
+                                   Icon="@SvgIcon.ArrowRotateCcw">
+                        Reset Test Data
+                    </TelerikButton>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-content-center py-5">
+            <TelerikLoader Visible="true" Size="@ThemeConstants.Loader.Size.Large" />
+        </div>
+    }
+    else
+    {
+        <!-- Summary Cards Row -->
+        <div class="row mb-4 g-3">
+            <!-- Total Balance Card -->
+            <div class="col-md-6 col-lg-3">
+                <IconSummaryCard Title="Total Balance"
+                                 Value="@totalBalance"
+                                 Icon="@SvgIcon.Dollar"
+                                 IconBackgroundColor="primary"
+                                 IconColor="primary"
+                                 DynamicValueColor="true"
+                                 Subtitle="@($"Across {accounts.Count} accounts")" />
+            </div>
+
+            <!-- Period Income Card -->
+            <div class="col-md-6 col-lg-3">
+                <IconSummaryCard Title="Income"
+                                 Value="@periodIncome"
+                                 Icon="@SvgIcon.ArrowUp"
+                                 IconBackgroundColor="success"
+                                 IconColor="success"
+                                 ValueColor="success"
+                                 Subtitle="@GetPeriodLabel()" />
+            </div>
+
+            <!-- Period Expenses Card -->
+            <div class="col-md-6 col-lg-3">
+                <IconSummaryCard Title="Expenses"
+                                 Value="@periodExpenses"
+                                 Icon="@SvgIcon.ArrowDown"
+                                 IconBackgroundColor="danger"
+                                 IconColor="danger"
+                                 ValueColor="danger"
+                                 Subtitle="@GetPeriodLabel()" />
+            </div>
+
+            <!-- Net Savings Card -->
+            <div class="col-md-6 col-lg-3">
+                <IconSummaryCard Title="Net Savings"
+                                 Value="@periodNetSavings"
+                                 Icon="@SvgIcon.ChartLineMarkers"
+                                 IconBackgroundColor="info"
+                                 IconColor="info"
+                                 DynamicValueColor="true"
+                                 Subtitle="@GetPeriodLabel()" />
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4 g-3">
+            <!-- Spending by Category (Donut Chart) -->
+            <div class="col-lg-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0">Spending by Category</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (categorySpending.Any())
+                        {
+                            <TelerikChart Height="300px">
+                                <ChartSeriesItems>
+                                    <ChartSeries Type="ChartSeriesType.Donut"
+                                                 Data="@categorySpending"
+                                                 Field="@nameof(CategorySpending.TotalAmount)"
+                                                 CategoryField="@nameof(CategorySpending.CategoryName)"
+                                                 ColorField="@nameof(CategorySpending.CategoryColor)">
+                                        <ChartSeriesLabels Visible="true"
+                                                           Format="$#,##0"
+                                                           Position="ChartSeriesLabelsPosition.OutsideEnd" />
+                                    </ChartSeries>
+                                </ChartSeriesItems>
+                                <ChartLegend Visible="true" Position="ChartLegendPosition.Bottom" />
+                                <ChartTooltip Visible="true" />
+                            </TelerikChart>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <TelerikSvgIcon Icon="@SvgIcon.ChartPie" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                                <p class="mt-2">No expense data available</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Trends (Bar/Line Chart) - Always shows last 6 months -->
+            <div class="col-lg-7">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0">
+                        <h5 class="mb-0">Income vs Expenses <small class="text-muted fw-normal">(Last 6 months)</small></h5>
+                    </div>
+                    <div class="card-body">
+                        @if (monthlyTrends.Any())
+                        {
+                            <TelerikChart Height="300px">
+                                <ChartSeriesItems>
+                                    <ChartSeries Type="ChartSeriesType.Column"
+                                                 Data="@monthlyTrends"
+                                                 Field="@nameof(TransactionSummary.TotalIncome)"
+                                                 CategoryField="@nameof(TransactionSummary.MonthName)"
+                                                 Name="Income"
+                                                 Color="#27AE60">
+                                    </ChartSeries>
+                                    <ChartSeries Type="ChartSeriesType.Column"
+                                                 Data="@monthlyTrends"
+                                                 Field="@nameof(TransactionSummary.TotalExpenses)"
+                                                 CategoryField="@nameof(TransactionSummary.MonthName)"
+                                                 Name="Expenses"
+                                                 Color="#E74C3C">
+                                    </ChartSeries>
+                                    <ChartSeries Type="ChartSeriesType.Line"
+                                                 Data="@monthlyTrends"
+                                                 Field="@nameof(TransactionSummary.NetAmount)"
+                                                 CategoryField="@nameof(TransactionSummary.MonthName)"
+                                                 Name="Net"
+                                                 Color="#3498DB">
+                                        <ChartSeriesMarkers Visible="true" />
+                                    </ChartSeries>
+                                </ChartSeriesItems>
+                                <ChartCategoryAxes>
+                                    <ChartCategoryAxis />
+                                </ChartCategoryAxes>
+                                <ChartValueAxes>
+                                    <ChartValueAxis>
+                                        <ChartValueAxisLabels Format="$#,##0" />
+                                    </ChartValueAxis>
+                                </ChartValueAxes>
+                                <ChartLegend Visible="true" Position="ChartLegendPosition.Top" />
+                                <ChartTooltip Visible="true" />
+                            </TelerikChart>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5 text-muted">
+                                <TelerikSvgIcon Icon="@SvgIcon.ChartColumnClustered" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                                <p class="mt-2">No trend data available</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Row: Accounts & Recent Transactions -->
+        <div class="row g-3">
+            <!-- Accounts List -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Accounts</h5>
+                        <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                                       Size="@ThemeConstants.Button.Size.Small"
+                                       OnClick="@(() => Navigation.NavigateTo("/finance/accounts"))">
+                            View All
+                        </TelerikButton>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (accounts.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var account in accounts.Take(5))
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center border-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="rounded-circle me-3 d-flex align-items-center justify-content-center"
+                                                 style="width: 40px; height: 40px; background-color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)20;">
+                                                <span style="color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)">
+                                                    <TelerikSvgIcon Icon="@FinanceUIHelpers.GetAccountIcon(account.AccountType)" />
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <div class="fw-medium">@account.Name</div>
+                                                <small class="text-muted">@account.AccountType.ToString()</small>
+                                            </div>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="@(account.CurrentBalance >= 0 ? "text-success" : "text-danger") fw-bold">
+                                                @account.CurrentBalance.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                <TelerikSvgIcon Icon="@SvgIcon.Folder" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                                <p class="mt-2 mb-0">No accounts yet</p>
+                                <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                               Size="@ThemeConstants.Button.Size.Small"
+                                               Class="mt-2"
+                                               OnClick="@(() => Navigation.NavigateTo("/finance/accounts/new"))">
+                                    Add Account
+                                </TelerikButton>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Transactions</h5>
+                        <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                                       Size="@ThemeConstants.Button.Size.Small"
+                                       OnClick="@(() => Navigation.NavigateTo("/finance/transactions"))">
+                            View All
+                        </TelerikButton>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (recentTransactions.Any())
+                        {
+                            <TelerikGrid Data="@recentTransactions"
+                                         Sortable="false"
+                                         Pageable="false"
+                                         Class="border-0">
+                                <GridColumns>
+                                    <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="100px">
+                                        <Template>
+                                            @{
+                                                var item = (Transaction)context;
+                                            }
+                                            <span>@item.Date.ToString("MMM dd")</span>
+                                        </Template>
+                                    </GridColumn>
+                                    <GridColumn Field="@nameof(Transaction.Description)" Title="Description">
+                                        <Template>
+                                            @{
+                                                var item = (Transaction)context;
+                                            }
+                                            <span>@item.Description</span>
+                                        </Template>
+                                    </GridColumn>
+                                    <GridColumn Field="@nameof(Transaction.Category)" Title="Category" Width="140px">
+                                        <Template>
+                                            @{
+                                                var item = (Transaction)context;
+                                            }
+                                            @if (item.Category != null)
+                                            {
+                                                <span class="badge" style="background-color: @item.Category.Color;">
+                                                    @item.Category.Name
+                                                </span>
+                                            }
+                                        </Template>
+                                    </GridColumn>
+                                    <GridColumn Field="@nameof(Transaction.Account)" Title="Account" Width="150px">
+                                        <Template>
+                                            @{
+                                                var item = (Transaction)context;
+                                            }
+                                            <span>@item.Account?.Name</span>
+                                        </Template>
+                                    </GridColumn>
+                                    <GridColumn Field="@nameof(Transaction.Amount)" Title="Amount" Width="120px" TextAlign="@ColumnTextAlign.Right">
+                                        <Template>
+                                            @{
+                                                var item = (Transaction)context;
+                                                var color = item.Type == TransactionType.Income ? "text-success" : 
+                                                            item.Type == TransactionType.Expense ? "text-danger" : "text-info";
+                                                var sign = item.Type == TransactionType.Income ? "+" : 
+                                                           item.Type == TransactionType.Expense ? "-" : "";
+                                            }
+                                            <span class="@color fw-bold">@sign@item.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                                        </Template>
+                                    </GridColumn>
+                                </GridColumns>
+                            </TelerikGrid>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                <TelerikSvgIcon Icon="@SvgIcon.TableUnmerge" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                                <p class="mt-2 mb-0">No transactions yet</p>
+                                <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                               Size="@ThemeConstants.Button.Size.Small"
+                                               Class="mt-2"
+                                               OnClick="@OpenQuickAddTransaction">
+                                    Add Transaction
+                                </TelerikButton>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Budget Progress Section -->
+        @if (budgetProgress.Any())
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Budget Progress - @DateTime.Now.ToString("MMMM yyyy")</h5>
+                            <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                                           Size="@ThemeConstants.Button.Size.Small"
+                                           OnClick="@(() => Navigation.NavigateTo("/finance/budget"))">
+                                Manage Budgets
+                            </TelerikButton>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                @foreach (var budget in budgetProgress.Take(6))
+                                {
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="fw-medium">@budget.CategoryName</span>
+                                            <span class="@(budget.IsOverBudget ? "text-danger" : "text-muted")">
+                                                @budget.SpentAmount.ToString("C0", CultureInfo.GetCultureInfo("en-US")) / @budget.BudgetAmount.ToString("C0", CultureInfo.GetCultureInfo("en-US"))
+                                            </span>
+                                        </div>
+                                        <TelerikProgressBar Value="@((double)Math.Min(budget.PercentageUsed, 100))"
+                                                            Max="100"
+                                                            Class="@(budget.IsOverBudget ? "progress-danger" : budget.PercentageUsed >= 80 ? "progress-warning" : "")">
+                                        </TelerikProgressBar>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- Quick Add Transaction Dialog -->
+<TelerikDialog @bind-Visible="@showQuickAddDialog"
+               Title="Add Transaction"
+               Width="500px"
+               CloseOnOverlayClick="false">
+    <DialogContent>
+        <div class="mb-3">
+            <label class="form-label">Type</label>
+            <TelerikButtonGroup SelectionMode="@ButtonGroupSelectionMode.Single">
+                <ButtonGroupToggleButton Selected="@(newTransaction.Type == TransactionType.Expense)"
+                                         SelectedChanged="@((bool selected) => { if(selected) { newTransaction.Type = TransactionType.Expense; _ = OnQuickAddChanged(null); } })">
+                    Expense
+                </ButtonGroupToggleButton>
+                <ButtonGroupToggleButton Selected="@(newTransaction.Type == TransactionType.Income)"
+                                         SelectedChanged="@((bool selected) => { if(selected) { newTransaction.Type = TransactionType.Income; _ = OnQuickAddChanged(null); } })">
+                    Income
+                </ButtonGroupToggleButton>
+                <ButtonGroupToggleButton Selected="@(newTransaction.Type == TransactionType.Transfer)"
+                                         SelectedChanged="@((bool selected) => { if(selected) { newTransaction.Type = TransactionType.Transfer; _ = OnQuickAddChanged(null); } })">
+                    Transfer
+                </ButtonGroupToggleButton>
+            </TelerikButtonGroup>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Amount</label>
+            <TelerikNumericTextBox @bind-Value="@newTransaction.Amount"
+                                   Format="$#,##0.00"
+                                   Min="0"
+                                   Placeholder="0.00"
+                                   Width="100%"
+                                   OnChange="@OnQuickAddChanged" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <TelerikTextBox @bind-Value="@newTransaction.Description"
+                            Placeholder="Enter description"
+                            Width="100%"
+                            OnChange="@OnQuickAddChanged" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Date</label>
+            <TelerikDatePicker @bind-Value="@newTransaction.Date"
+                               Format="yyyy-MM-dd"
+                               Width="100%"
+                               OnChange="@OnQuickAddChanged" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Account</label>
+            <TelerikDropDownList Data="@accounts"
+                                 @bind-Value="@newTransaction.AccountId"
+                                 TextField="Name"
+                                 ValueField="Id"
+                                 DefaultText="Select account"
+                                 Width="100%"
+                                 OnChange="@OnQuickAddChanged" />
+        </div>
+
+        @if (newTransaction.Type == TransactionType.Transfer)
+        {
+            <div class="mb-3">
+                <label class="form-label">To Account</label>
+                <TelerikDropDownList Data="@accounts.Where(a => a.Id != newTransaction.AccountId)"
+                                     @bind-Value="@destinationAccountId"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="Select destination account"
+                                     Width="100%"
+                                     OnChange="@OnQuickAddChanged" />
+            </div>
+        }
+        else
+        {
+            <div class="mb-3">
+                <label class="form-label">Category</label>
+                <TelerikDropDownList Data="@GetCategoriesForType(newTransaction.Type)"
+                                     @bind-Value="@newTransaction.CategoryId"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="Select category"
+                                     Width="100%"
+                                     OnChange="@OnQuickAddChanged" />
+            </div>
+        }
+    </DialogContent>
+    <DialogButtons>
+        <TelerikButton OnClick="@CloseQuickAddDialog" ThemeColor="@ThemeConstants.Button.ThemeColor.Light">
+            Cancel
+        </TelerikButton>
+        <TelerikButton OnClick="@SaveQuickTransaction" ThemeColor="@ThemeConstants.Button.ThemeColor.Primary">
+            Save Transaction
+        </TelerikButton>
+    </DialogButtons>
+</TelerikDialog>
+
+<!-- Reset Test Data Confirmation Dialog -->
+<TelerikWindow @bind-Visible="@showResetConfirmation"
+               Modal="true"
+               Width="500px">
+    <WindowTitle>
+        <span class="text-warning">
+            <TelerikSvgIcon Icon="@SvgIcon.ExclamationCircle" />
+            Reset Test Data
+        </span>
+    </WindowTitle>
+    <WindowContent>
+        <div class="p-3">
+            <div class="alert alert-warning mb-3">
+                <strong>Warning!</strong> This action will:
+                <ul class="mb-0 mt-2">
+                    <li>Delete ALL your existing budgets</li>
+                    <li>Delete ALL your existing transactions</li>
+                    <li>Delete ALL your existing accounts</li>
+                    <li>Create new test data for all 12 months of 2025</li>
+                </ul>
+            </div>
+            <p class="text-muted">This cannot be undone. Are you sure you want to continue?</p>
+        </div>
+        <div class="d-flex justify-content-end gap-2 p-3 border-top">
+            <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                           OnClick="@CancelReset"
+                           Enabled="@(!isResetting)">
+                Cancel
+            </TelerikButton>
+            <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Warning"
+                           OnClick="@ConfirmReset"
+                           Enabled="@(!isResetting)"
+                           Icon="@SvgIcon.ArrowRotateCcw">
+                @if (isResetting)
+                {
+                    <TelerikLoader Size="@ThemeConstants.Loader.Size.Small" />
+                    <span class="ms-2">Resetting...</span>
+                }
+                else
+                {
+                    <span>Yes, Reset All Data</span>
+                }
+            </TelerikButton>
+        </div>
+    </WindowContent>
+</TelerikWindow>
+
+<TelerikNotification @ref="@notificationRef" Class="notification-container" />
+
+<!-- AI Financial Assistant Chat -->
+<div class="ai-chat-container @(isChatOpen ? "open" : "")">
+    <!-- Chat Toggle Button -->
+    <TelerikButton Class="ai-chat-toggle-btn"
+                   ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                   Rounded="@ThemeConstants.Button.Rounded.Full"
+                   OnClick="@ToggleChat">
+        <TelerikSvgIcon Icon="@(isChatOpen ? SvgIcon.X : SvgIcon.Comment)" Size="@ThemeConstants.SvgIcon.Size.Large" />
+    </TelerikButton>
+
+    <!-- Chat Panel -->
+    @if (isChatOpen)
+    {
+        <div class="ai-chat-panel shadow-lg">
+            <div class="ai-chat-header d-flex justify-content-between align-items-center p-3 bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <TelerikSvgIcon Icon="@SvgIcon.Sparkles" Size="@ThemeConstants.SvgIcon.Size.Medium" Class="me-2" />
+                    <span class="fw-bold">Financial Assistant</span>
+                </div>
+                <TelerikButton FillMode="@ThemeConstants.Button.FillMode.Flat"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@ClearChat"
+                               Title="Clear chat">
+                    <TelerikSvgIcon Icon="@SvgIcon.Trash" />
+                </TelerikButton>
+            </div>
+            <TelerikChat @ref="@chatRef"
+                         Data="@chatMessages"
+                         AuthorId="@ChatCurrentUserId"
+                         TextField="@nameof(FinanceChatMessage.Content)"
+                         AuthorIdField="@nameof(FinanceChatMessage.AuthorId)"
+                         AuthorNameField="@nameof(FinanceChatMessage.AuthorName)"
+                         TimestampField="@nameof(FinanceChatMessage.Timestamp)"
+                         IsTypingField="@nameof(FinanceChatMessage.IsTyping)"
+                         Suggestions="@chatSuggestions"
+                         OnSendMessage="@OnChatSendMessage"
+                         OnSuggestionClick="@OnChatSuggestionClick"
+                         Height="400px"
+                         Width="100%">
+                <ReceiverMessageContentTemplate>
+                    <CentuitionApp.Components.Shared.MarkdownContent Message="@context.Message.Content" />
+                </ReceiverMessageContentTemplate>
+            </TelerikChat>
+        </div>
+    }
+</div>
+
+<style>
+    .ai-chat-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+
+    .ai-chat-toggle-btn {
+        width: 56px;
+        height: 56px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        transition: transform 0.2s ease;
+    }
+
+    .ai-chat-toggle-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .ai-chat-container.open .ai-chat-toggle-btn {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+    }
+
+    .ai-chat-panel {
+        position: absolute;
+        bottom: 70px;
+        right: 0;
+        width: 400px;
+        max-width: calc(100vw - 40px);
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        animation: slideUp 0.3s ease;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .ai-chat-header {
+        border-radius: 12px 12px 0 0;
+    }
+
+    @@media (max-width: 480px) {
+        .ai-chat-panel {
+            width: calc(100vw - 40px);
+            bottom: 70px;
+        }
+    }
+</style>
+
+@code {
+    private bool isLoading = true;
+    private string? userId;
+    
+    private bool showResetConfirmation;
+    private bool isResetting;
+
+    private string selectedPeriod = "month";
+    private DateTime selectedDate = DateTime.Today;
+    private int selectedYear = DateTime.Today.Year;
+    private DateTime? periodStartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime? periodEndDate = DateTime.Today;
+    
+    private decimal totalBalance;
+    private decimal periodIncome;
+    private decimal periodExpenses;
+    private decimal periodNetSavings;
+    
+    private List<Account> accounts = new();
+    private List<Transaction> recentTransactions = new();
+    private List<CategorySpending> categorySpending = new();
+    private List<TransactionSummary> monthlyTrends = new();
+    private List<BudgetProgress> budgetProgress = new();
+    private List<Category> categories = new();
+    
+    private bool showQuickAddDialog;
+    private Transaction newTransaction = new();
+    private int? destinationAccountId;
+    private TelerikNotification? notificationRef;
+    
+    private bool isChatOpen;
+    private TelerikChat<FinanceChatMessage>? chatRef;
+    private List<FinanceChatMessage> chatMessages = new();
+    private const string ChatCurrentUserId = "user";
+    private const string ChatAssistantId = "assistant";
+    private List<string> chatSuggestions = new()
+    {
+        "What's my total balance?",
+        "Show my spending by category",
+        "How much did I spend this month?",
+        "What are my top expenses?",
+        "Am I over budget?"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            await LoadDashboardData();
+        }
+
+        isLoading = false;
+    }
+
+    private (DateTime start, DateTime end) GetPeriodDates()
+    {
+        return selectedPeriod switch
+        {
+            "month" => (
+                new DateTime(selectedDate.Year, selectedDate.Month, 1),
+                new DateTime(selectedDate.Year, selectedDate.Month, 1).AddMonths(1).AddDays(-1)
+            ),
+            "year" => (
+                new DateTime(selectedYear, 1, 1),
+                new DateTime(selectedYear, 12, 31)
+            ),
+            "custom" => (
+                periodStartDate ?? DateTime.Today.AddMonths(-1),
+                periodEndDate ?? DateTime.Today
+            ),
+            _ => (DateTime.Today.AddMonths(-1), DateTime.Today)
+        };
+    }
+
+    private string GetPeriodLabel()
+    {
+        return selectedPeriod switch
+        {
+            "month" => selectedDate.ToString("MMMM yyyy"),
+            "year" => $"Year {selectedYear}",
+            "custom" => "Selected period",
+            _ => "This month"
+        };
+    }
+
+    private async Task ChangePeriod(string period)
+    {
+        selectedPeriod = period;
+        await LoadDashboardData();
+    }
+
+    private async Task OnDateChanged(object value)
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task OnYearChanged(object value)
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task OnCustomRangeChanged(object value)
+    {
+        if (periodStartDate.HasValue && periodEndDate.HasValue)
+        {
+            await LoadDashboardData();
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        var (startDate, endDate) = GetPeriodDates();
+        
+        accounts = await AccountService.GetAllAccountsAsync(userId);
+        totalBalance = await AccountService.GetTotalBalanceAsync(userId);
+        periodIncome = await TransactionService.GetTotalIncomeAsync(userId, startDate, endDate);
+        periodExpenses = await TransactionService.GetTotalExpensesAsync(userId, startDate, endDate);
+        recentTransactions = await TransactionService.GetRecentTransactionsAsync(userId, 10);
+        categorySpending = await CategoryService.GetCategorySpendingAsync(userId, startDate, endDate);
+        monthlyTrends = await TransactionService.GetMonthlyTrendsAsync(userId, 6);
+        budgetProgress = await BudgetService.GetBudgetProgressAsync(userId, DateTime.Today.Year, DateTime.Today.Month);
+        categories = await CategoryService.GetAllCategoriesAsync(userId);
+
+        periodNetSavings = periodIncome - periodExpenses;
+    }
+
+    private void OpenQuickAddTransaction()
+    {
+        newTransaction = new Transaction
+        {
+            Date = DateTime.Today,
+            Type = TransactionType.Expense,
+            UserId = userId ?? string.Empty,
+            AccountId = accounts.FirstOrDefault()?.Id ?? 0
+        };
+        destinationAccountId = null;
+        showQuickAddDialog = true;
+    }
+
+    private void CloseQuickAddDialog()
+    {
+        showQuickAddDialog = false;
+    }
+
+    private List<Category> GetCategoriesForType(TransactionType type)
+    {
+        var categoryType = type == TransactionType.Income ? CategoryType.Income : CategoryType.Expense;
+        return categories.Where(c => c.Type == categoryType).ToList();
+    }
+
+    private bool IsQuickTransactionValid()
+    {
+        if (newTransaction.Amount <= 0) return false;
+        if (string.IsNullOrWhiteSpace(newTransaction.Description)) return false;
+        if (newTransaction.AccountId <= 0) return false;
+        if (newTransaction.Type == TransactionType.Transfer && (!destinationAccountId.HasValue || destinationAccountId.Value <= 0)) return false;
+        return true;
+    }
+
+    private async Task SaveQuickTransaction()
+    {
+        if (string.IsNullOrEmpty(userId)) return;
+
+        if (!IsQuickTransactionValid())
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = GetQuickTransactionValidationError() ?? "Please complete all required fields.",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Warning,
+                CloseAfter = 4000
+            });
+            return;
+        }
+
+        newTransaction.UserId = userId;
+        if (newTransaction.Type == TransactionType.Transfer)
+        {
+            newTransaction.DestinationAccountId = destinationAccountId;
+            newTransaction.CategoryId = null;
+        }
+
+        await TransactionService.CreateTransactionAsync(newTransaction);
+        
+        showQuickAddDialog = false;
+        
+        notificationRef?.Show(new NotificationModel
+        {
+            Text = "Transaction added successfully!",
+            ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+            CloseAfter = 3000
+        });
+        
+        await LoadDashboardData();
+    }
+
+    private string? GetQuickTransactionValidationError()
+    {
+        if (newTransaction.Amount <= 0) return "Please enter an amount greater than $0.00.";
+        if (string.IsNullOrWhiteSpace(newTransaction.Description)) return "Please enter a description.";
+        if (newTransaction.AccountId <= 0) return "Please select an account.";
+        if (newTransaction.Type == TransactionType.Transfer && (!destinationAccountId.HasValue || destinationAccountId.Value <= 0))
+            return "Please select a destination account for the transfer.";
+        return null;
+    }
+
+    private void ToggleChat()
+    {
+        isChatOpen = !isChatOpen;
+        if (isChatOpen && !chatMessages.Any())
+        {
+            chatMessages.Add(new FinanceChatMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                AuthorId = ChatAssistantId,
+                AuthorName = "Financial Assistant",
+                Content = "Hello! I'm your AI financial assistant. I can help you understand your finances. Ask me about your balance, spending, budgets, or transactions!",
+                Timestamp = DateTime.Now
+            });
+        }
+    }
+
+    private void ClearChat()
+    {
+        chatMessages.Clear();
+        chatMessages.Add(new FinanceChatMessage
+        {
+            Id = Guid.NewGuid().ToString(),
+            AuthorId = ChatAssistantId,
+            AuthorName = "Financial Assistant",
+            Content = "Chat cleared. How can I help you with your finances today?",
+            Timestamp = DateTime.Now
+        });
+        chatRef?.Refresh();
+    }
+
+    private async Task OnChatSendMessage(ChatSendMessageEventArgs args)
+    {
+        var userMessage = new FinanceChatMessage
+        {
+            Id = Guid.NewGuid().ToString(),
+            AuthorId = ChatCurrentUserId,
+            AuthorName = "You",
+            Content = args.Message,
+            Timestamp = DateTime.Now
+        };
+        chatMessages.Add(userMessage);
+
+        var typingMessage = new FinanceChatMessage
+        {
+            Id = "typing",
+            AuthorId = ChatAssistantId,
+            AuthorName = "Financial Assistant",
+            Content = "",
+            IsTyping = true,
+            Timestamp = DateTime.Now
+        };
+        chatMessages.Add(typingMessage);
+        chatRef?.Refresh();
+
+        try
+        {
+            var response = await GetFinanceAssistantResponse(args.Message);
+            
+            chatMessages.RemoveAll(m => m.Id == "typing");
+            chatMessages.Add(new FinanceChatMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                AuthorId = ChatAssistantId,
+                AuthorName = "Financial Assistant",
+                Content = response,
+                Timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            chatMessages.RemoveAll(m => m.Id == "typing");
+            chatMessages.Add(new FinanceChatMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                AuthorId = ChatAssistantId,
+                AuthorName = "Financial Assistant",
+                Content = "I'm sorry, I encountered an error processing your request. Please try again.",
+                Timestamp = DateTime.Now
+            });
+        }
+
+        chatRef?.Refresh();
+    }
+
+    private async Task OnChatSuggestionClick(ChatSuggestionClickEventArgs args)
+    {
+        await OnChatSendMessage(new ChatSendMessageEventArgs { Message = args.Suggestion });
+    }
+
+    private async Task<string> GetFinanceAssistantResponse(string question)
+    {
+        if (string.IsNullOrEmpty(userId)) return "Please log in to access your financial data.";
+
+        var financialContext = await BuildFinancialContext();
+
+        var systemPrompt = $@"You are a helpful financial assistant for a personal finance tracking application called Centuition. 
+You have access to the user's financial data and should provide helpful, accurate, and actionable insights.
+
+IMPORTANT RULES:
+- Always format currency values with $ and two decimal places (e.g., $1,234.56)
+- Be concise but informative
+- If asked about something not in the context, politely explain you can only answer questions about their financial data
+- Provide specific numbers and details from the context when relevant
+- Suggest actionable insights when appropriate
+- Never make up data that isn't in the context
+
+USER'S FINANCIAL DATA CONTEXT:
+{financialContext}
+
+Current Date: {DateTime.Today:MMMM d, yyyy}";
+
+        var options = new ChatOptions
+        {
+            Instructions = systemPrompt
+        };
+
+        var response = await ChatClient.GetResponseAsync(question, options);
+        return response.Text;
+    }
+
+    private async Task<string> BuildFinancialContext()
+    {
+        if (string.IsNullOrEmpty(userId)) return "No user data available.";
+
+        var (startDate, endDate) = GetPeriodDates();
+        var monthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        var monthEnd = monthStart.AddMonths(1).AddDays(-1);
+        var usCulture = CultureInfo.GetCultureInfo("en-US");
+
+        var sb = new System.Text.StringBuilder();
+
+        sb.AppendLine("=== ACCOUNTS ===");
+        foreach (var account in accounts)
+        {
+            sb.AppendLine($"- {account.Name} ({account.AccountType}): {account.CurrentBalance.ToString("C2", usCulture)}");
+        }
+        sb.AppendLine($"Total Balance: {totalBalance.ToString("C2", usCulture)}");
+        sb.AppendLine();
+
+        sb.AppendLine($"=== CURRENT PERIOD ({GetPeriodLabel()}) ===");
+        sb.AppendLine($"Income: {periodIncome.ToString("C2", usCulture)}");
+        sb.AppendLine($"Expenses: {periodExpenses.ToString("C2", usCulture)}");
+        sb.AppendLine($"Net Savings: {periodNetSavings.ToString("C2", usCulture)}");
+        sb.AppendLine();
+
+        if (categorySpending.Any())
+        {
+            sb.AppendLine("=== SPENDING BY CATEGORY ===");
+            foreach (var cat in categorySpending.OrderByDescending(c => c.TotalAmount))
+            {
+                sb.AppendLine($"- {cat.CategoryName}: ${cat.TotalAmount:F2} ({cat.TransactionCount} transactions, {cat.Percentage:F1}%)");
+            }
+            sb.AppendLine();
+        }
+
+        if (budgetProgress.Any())
+        {
+            sb.AppendLine($"=== BUDGET STATUS ({DateTime.Today:MMMM yyyy}) ===");
+            foreach (var budget in budgetProgress)
+            {
+                var status = budget.IsOverBudget ? "OVER BUDGET" : budget.PercentageUsed >= 80 ? "WARNING" : "On Track";
+                sb.AppendLine($"- {budget.CategoryName}: {budget.SpentAmount.ToString("C2", usCulture)} of {budget.BudgetAmount.ToString("C2", usCulture)} ({budget.PercentageUsed:F0}% used) [{status}]");
+            }
+            sb.AppendLine();
+        }
+
+        if (recentTransactions.Any())
+        {
+            sb.AppendLine("=== RECENT TRANSACTIONS (Last 10) ===");
+            foreach (var tx in recentTransactions)
+            {
+                var sign = tx.Type == TransactionType.Income ? "+" : tx.Type == TransactionType.Expense ? "-" : "↔";
+                sb.AppendLine($"- {tx.Date:MMM dd}: {sign}{tx.Amount.ToString("C2", usCulture)} - {tx.Description} ({tx.Category?.Name ?? "No category"})");
+            }
+            sb.AppendLine();
+        }
+
+        if (monthlyTrends.Any())
+        {
+            sb.AppendLine("=== MONTHLY TRENDS (Last 6 months) ===");
+            foreach (var trend in monthlyTrends)
+            {
+                sb.AppendLine($"- {trend.MonthName}: Income {trend.TotalIncome.ToString("C2", usCulture)}, Expenses {trend.TotalExpenses.ToString("C2", usCulture)}, Net {trend.NetAmount.ToString("C2", usCulture)}");
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    public class FinanceChatMessage
+    {
+        public string Id { get; set; } = string.Empty;
+        public string AuthorId { get; set; } = string.Empty;
+        public string AuthorName { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+        public bool IsTyping { get; set; }
+    }
+
+    private void OpenResetDialog()
+    {
+        showResetConfirmation = true;
+    }
+
+    private void CancelReset()
+    {
+        showResetConfirmation = false;
+    }
+
+    private async Task ConfirmReset()
+    {
+        if (string.IsNullOrEmpty(userId))
+        {
+            showResetConfirmation = false;
+            return;
+        }
+
+        isResetting = true;
+        StateHasChanged();
+
+        try
+        {            
+            await SeedData.ResetAndSeedTestDataAsync(DbContext, userId);
+            
+            await LoadDashboardData();
+
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = "Test data has been reset successfully! Budgets and transactions for all 12 months of 2025 have been created.",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Success,
+                CloseAfter = 5000
+            });
+        }
+        catch (Exception ex)
+        {
+            notificationRef?.Show(new NotificationModel
+            {
+                Text = $"Error resetting data: {ex.Message}",
+                ThemeColor = ThemeConstants.Notification.ThemeColor.Error,
+                CloseAfter = 5000
+            });
+        }
+        finally
+        {
+            isResetting = false;
+            showResetConfirmation = false;
+        }
+    }
+
+    private Task OnQuickAddChanged(object? _)
+    {
+        return InvokeAsync(StateHasChanged);
+    }
+}

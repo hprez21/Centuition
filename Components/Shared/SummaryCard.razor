@@ -1,0 +1,124 @@
+@using System.Globalization
+
+<div class="card border-0 shadow-sm @(FullHeight ? "h-100" : "") @GetBorderClass()">
+    <div class="card-body">
+        <h6 class="text-muted mb-1">@Title</h6>
+        <h3 class="@GetValueColorClass() @(HasSubtitle ? "mb-1" : "mb-0")">@GetFormattedValue()</h3>
+        @if (HasSubtitle)
+        {
+            <small class="text-muted">@Subtitle</small>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// The title displayed at the top of the card
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The numeric value to display (will be formatted as currency if IsCurrency is true)
+    /// </summary>
+    [Parameter]
+    public decimal Value { get; set; }
+
+    /// <summary>
+    /// The color for the left border (success, danger, info, warning, primary, secondary)
+    /// Set to null or empty to disable the border
+    /// </summary>
+    [Parameter]
+    public string? BorderColor { get; set; } = "primary";
+
+    /// <summary>
+    /// The color for the value text. If not specified and not using DynamicValueColor, 
+    /// uses BorderColor (if set) or no specific color
+    /// </summary>
+    [Parameter]
+    public string? ValueColor { get; set; }
+
+    /// <summary>
+    /// Whether to use dynamic coloring based on positive/negative value
+    /// </summary>
+    [Parameter]
+    public bool DynamicValueColor { get; set; }
+
+    /// <summary>
+    /// Optional subtitle text displayed below the value
+    /// </summary>
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Whether the value should be formatted as currency
+    /// </summary>
+    [Parameter]
+    public bool IsCurrency { get; set; } = true;
+
+    /// <summary>
+    /// Culture for number formatting (defaults to en-US)
+    /// </summary>
+    [Parameter]
+    public string Culture { get; set; } = "en-US";
+
+    /// <summary>
+    /// Whether the card should have full height (h-100)
+    /// </summary>
+    [Parameter]
+    public bool FullHeight { get; set; }
+
+    /// <summary>
+    /// Custom format string for non-currency values
+    /// </summary>
+    [Parameter]
+    public string? Format { get; set; }
+
+    private bool HasSubtitle => !string.IsNullOrEmpty(Subtitle);
+
+    private string GetBorderClass()
+    {
+        if (string.IsNullOrEmpty(BorderColor))
+        {
+            return string.Empty;
+        }
+        return $"border-start border-{BorderColor} border-4";
+    }
+
+    private string GetValueColorClass()
+    {
+        if (DynamicValueColor)
+        {
+            return Value >= 0 ? "text-success" : "text-danger";
+        }
+
+        if (!string.IsNullOrEmpty(ValueColor))
+        {
+            return $"text-{ValueColor}";
+        }
+
+        if (!string.IsNullOrEmpty(BorderColor))
+        {
+            return $"text-{BorderColor}";
+        }
+
+        return string.Empty;
+    }
+
+    private string GetFormattedValue()
+    {
+        var cultureInfo = CultureInfo.GetCultureInfo(Culture);
+        
+        if (IsCurrency)
+        {
+            return Value.ToString("C2", cultureInfo);
+        }
+
+        if (!string.IsNullOrEmpty(Format))
+        {
+            return Value.ToString(Format, cultureInfo);
+        }
+
+        return Value.ToString("N2", cultureInfo);
+    }
+}

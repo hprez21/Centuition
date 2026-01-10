@@ -1,0 +1,122 @@
+@using System.Globalization
+@using Telerik.SvgIcons
+
+<div class="card h-100 border-0 shadow-sm">
+    <div class="card-body">
+        <div class="d-flex align-items-center mb-2">
+            <div class="rounded-circle bg-@IconBackgroundColor bg-opacity-10 p-2 me-3">
+                <TelerikSvgIcon Icon="@Icon" Size="@ThemeConstants.SvgIcon.Size.Large" Class="@GetIconColorClass()" />
+            </div>
+            <span class="text-muted">@Title</span>
+        </div>
+        <h3 class="mb-0 @GetValueColorClass()">
+            @GetFormattedValue()
+        </h3>
+        @if (!string.IsNullOrEmpty(Subtitle))
+        {
+            <small class="text-muted">@Subtitle</small>
+        }
+    </div>
+</div>
+
+@code {
+    /// <summary>
+    /// The title displayed next to the icon
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The numeric value to display
+    /// </summary>
+    [Parameter]
+    public decimal Value { get; set; }
+
+    /// <summary>
+    /// The Telerik SVG icon to display
+    /// </summary>
+    [Parameter]
+    public ISvgIcon Icon { get; set; } = SvgIcon.Dollar;
+
+    /// <summary>
+    /// Background color for the icon circle (e.g., primary, success, danger)
+    /// </summary>
+    [Parameter]
+    public string IconBackgroundColor { get; set; } = "primary";
+
+    /// <summary>
+    /// Color for the icon itself
+    /// </summary>
+    [Parameter]
+    public string IconColor { get; set; } = "primary";
+
+    /// <summary>
+    /// Color for the value text. If not specified, uses a default
+    /// </summary>
+    [Parameter]
+    public string? ValueColor { get; set; }
+
+    /// <summary>
+    /// Whether to use dynamic coloring based on positive/negative value
+    /// </summary>
+    [Parameter]
+    public bool DynamicValueColor { get; set; }
+
+    /// <summary>
+    /// Optional subtitle text displayed below the value
+    /// </summary>
+    [Parameter]
+    public string? Subtitle { get; set; }
+
+    /// <summary>
+    /// Whether the value should be formatted as currency
+    /// </summary>
+    [Parameter]
+    public bool IsCurrency { get; set; } = true;
+
+    /// <summary>
+    /// Culture for number formatting (defaults to en-US)
+    /// </summary>
+    [Parameter]
+    public string Culture { get; set; } = "en-US";
+
+    /// <summary>
+    /// Custom format string for non-currency values
+    /// </summary>
+    [Parameter]
+    public string? Format { get; set; }
+
+    private string GetValueColorClass()
+    {
+        if (DynamicValueColor)
+        {
+            return Value >= 0 ? "text-success" : "text-danger";
+        }
+
+        if (!string.IsNullOrEmpty(ValueColor))
+        {
+            return $"text-{ValueColor}";
+        }
+
+        return string.Empty;
+    }
+
+    private string GetIconColorClass() => $"text-{IconColor}";
+
+    private string GetFormattedValue()
+    {
+        var cultureInfo = CultureInfo.GetCultureInfo(Culture);
+        
+        if (IsCurrency)
+        {
+            return Value.ToString("C2", cultureInfo);
+        }
+
+        if (!string.IsNullOrEmpty(Format))
+        {
+            return Value.ToString(Format, cultureInfo);
+        }
+
+        return Value.ToString("N2", cultureInfo);
+    }
+}

@@ -1,0 +1,19 @@
+@using Markdig
+
+<div class="markdown-content">
+    @RawHtml(Message)
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string? Message { get; set; }
+
+    private MarkupString? RawHtml(string? text)
+    {
+        if (text is null) return null;
+        var pipeline = new MarkdownPipelineBuilder()
+            .UseAdvancedExtensions()
+            .Build();
+        return (MarkupString)Markdown.ToHtml(text, pipeline);
+    }
+}

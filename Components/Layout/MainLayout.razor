@@ -1,0 +1,46 @@
+﻿@inherits LayoutComponentBase
+
+<TelerikRootComponent>
+    <CascadingAuthenticationState>
+        <DrawerNavigation @ref="@DrawerNavigationRef">
+            <Content>
+                <div class="app-header">
+                    <TelerikButton OnClick="@ToggleDrawer"
+                                   Icon="@SvgIcon.Menu"
+                                   FillMode="@ThemeConstants.Button.FillMode.Flat"
+                                   Class="drawer-toggle-btn"
+                                   Title="Toggle Navigation">
+                    </TelerikButton>
+                    <div class="app-title">
+                        <TelerikSvgIcon Icon="@SvgIcon.Dollar" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                        <span>Centuition</span>
+                    </div>
+                </div>
+
+                <main class="app-main">
+                    <article class="content px-4">
+                        @Body
+                    </article>
+                </main>
+            </Content>
+        </DrawerNavigation>
+    </CascadingAuthenticationState>
+
+    <div id="blazor-error-ui" data-nosnippet>
+        An unhandled error has occurred.
+        <a href="." class="reload">Reload</a>
+        <span class="dismiss">🗙</span>
+    </div>
+</TelerikRootComponent>
+
+@code {
+    private DrawerNavigation? DrawerNavigationRef { get; set; }
+
+    private async Task ToggleDrawer()
+    {
+        if (DrawerNavigationRef != null)
+        {
+            await DrawerNavigationRef.ToggleDrawer();
+        }
+    }
+}

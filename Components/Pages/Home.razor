@@ -1,0 +1,19 @@
+﻿@page "/home"
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/finance/dashboard", replace: true);
+        }
+        else
+        {
+            Navigation.NavigateTo("/Account/Login", replace: true);
+        }
+    }
+}

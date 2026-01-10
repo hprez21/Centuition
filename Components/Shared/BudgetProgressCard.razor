@@ -1,0 +1,50 @@
+@using System.Globalization
+@using CentuitionApp.Services
+
+<div class="col-md-6 col-lg-4">
+    <div class="border rounded p-3 @BorderClass">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div class="d-flex align-items-center">
+                <div class="rounded-circle me-2"
+                     style="width: 12px; height: 12px; background-color: @Progress.CategoryColor;"></div>
+                <span class="fw-medium">@Progress.CategoryName</span>
+            </div>
+            <TelerikBadge ThemeColor="@FinanceUIHelpers.GetBudgetStatusBadgeColor(Progress)"
+                          Rounded="@ThemeConstants.Badge.Rounded.Large"
+                          Size="@ThemeConstants.Badge.Size.Small"
+                          Position="@BadgePosition.Inline">
+                @Progress.Status
+            </TelerikBadge>
+        </div>
+        <div class="mb-2">
+            <TelerikProgressBar Value="@((double)Math.Min(Progress.PercentageUsed, 100))"
+                                Max="100"
+                                Class="@FinanceUIHelpers.GetBudgetProgressBarClass(Progress)">
+            </TelerikProgressBar>
+        </div>
+        <div class="d-flex justify-content-between align-items-center small">
+            <span class="@(Progress.IsOverBudget ? "text-danger" : "")">
+                Spent: @Progress.SpentAmount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+            </span>
+            <span class="text-muted">
+                Budget: @Progress.BudgetAmount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+            </span>
+        </div>
+        <div class="text-end mt-1">
+            <small class="@(Progress.RemainingAmount >= 0 ? "text-success" : "text-danger")">
+                @(Progress.RemainingAmount >= 0 ? "Remaining: " : "Over by: ")@Math.Abs(Progress.RemainingAmount).ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+            </small>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public BudgetProgress Progress { get; set; } = default!;
+
+    private string BorderClass => Progress.IsOverBudget 
+        ? "border-danger" 
+        : Progress.PercentageUsed >= 80 
+            ? "border-warning" 
+            : "";
+}

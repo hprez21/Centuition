@@ -1,0 +1,47 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using CentuitionApp.Data
+
+@inject SignInManager<ApplicationUser> SignInManager
+
+<nav class="manage-nav">
+    <NavLink class="manage-nav-item" href="Account/Manage" Match="NavLinkMatch.All">
+        <UserIcon Size="18" />
+        <span>Profile</span>
+    </NavLink>
+    <NavLink class="manage-nav-item" href="Account/Manage/Email">
+        <EmailIcon Size="18" />
+        <span>Email</span>
+    </NavLink>
+    <NavLink class="manage-nav-item" href="Account/Manage/ChangePassword">
+        <LockIcon Size="18" />
+        <span>Password</span>
+    </NavLink>
+    @if (hasExternalLogins)
+    {
+        <NavLink class="manage-nav-item" href="Account/Manage/ExternalLogins">
+            <LoginIcon Size="18" />
+            <span>External logins</span>
+        </NavLink>
+    }
+    <NavLink class="manage-nav-item" href="Account/Manage/TwoFactorAuthentication">
+        <ShieldIcon Size="18" />
+        <span>Two-factor authentication</span>
+    </NavLink>
+    <NavLink class="manage-nav-item" href="Account/Manage/Passkeys">
+        <KeyIcon Size="18" />
+        <span>Passkeys</span>
+    </NavLink>
+    <NavLink class="manage-nav-item" href="Account/Manage/PersonalData">
+        <FileIcon Size="18" />
+        <span>Personal data</span>
+    </NavLink>
+</nav>
+
+@code {
+    private bool hasExternalLogins;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+    }
+}

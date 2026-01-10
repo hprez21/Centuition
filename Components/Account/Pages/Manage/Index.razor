@@ -1,0 +1,111 @@
+﻿@page "/Account/Manage"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using CentuitionApp.Data
+
+@inject UserManager<ApplicationUser> UserManager
+@inject SignInManager<ApplicationUser> SignInManager
+@inject IdentityRedirectManager RedirectManager
+
+<PageTitle>Profile - Centuition</PageTitle>
+
+<div class="manage-page">
+    <div class="manage-page-header">
+        <h1 class="manage-page-title">
+            <UserIcon Size="24" />
+            Profile
+        </h1>
+        <p class="manage-page-subtitle">Update your personal information</p>
+    </div>
+
+    <StatusMessage />
+
+    <div class="manage-card">
+        <EditForm Model="Input" FormName="profile" OnValidSubmit="OnValidSubmitAsync" method="post">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="auth-validation-summary" role="alert" />
+            
+            <div class="auth-input-group">
+                <label for="username" class="auth-label">
+                    <UserIcon Size="16" />
+                    Username
+                </label>
+                <input type="text" value="@username" id="username" class="auth-input" placeholder="Your username" disabled />
+                <small class="text-muted">Username cannot be changed</small>
+            </div>
+
+            <div class="auth-input-group">
+                <label for="Input.PhoneNumber" class="auth-label">
+                    <PhoneIcon Size="16" />
+                    Phone number
+                </label>
+                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="auth-input" placeholder="Enter your phone number" />
+                <ValidationMessage For="() => Input.PhoneNumber" class="auth-field-error" />
+            </div>
+
+            <button type="submit" class="auth-button auth-button-primary">
+                <SaveIcon Size="18" />
+                Save Changes
+            </button>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private ApplicationUser? user;
+    private string? username;
+    private string? phoneNumber;
+
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+
+        user = await UserManager.GetUserAsync(HttpContext.User);
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        username = await UserManager.GetUserNameAsync(user);
+        phoneNumber = await UserManager.GetPhoneNumberAsync(user);
+
+        Input.PhoneNumber ??= phoneNumber;
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        if (user is null)
+        {
+            RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
+            return;
+        }
+
+        if (Input.PhoneNumber != phoneNumber)
+        {
+            var setPhoneResult = await UserManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
+            if (!setPhoneResult.Succeeded)
+            {
+                RedirectManager.RedirectToCurrentPageWithStatus("Error: Failed to set phone number.", HttpContext);
+                return;
+            }
+        }
+
+        await SignInManager.RefreshSignInAsync(user);
+        RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
+    }
+
+    private sealed class InputModel
+    {
+        [Phone]
+        [Display(Name = "Phone number")]
+        public string? PhoneNumber { get; set; }
+    }
+}

@@ -1,0 +1,260 @@
+@implements IDisposable
+@inject NavigationManager NavigationManager
+@using CentuitionApp.Models
+
+<TelerikDrawer @ref="@DrawerRef"
+               Data="@NavigationItems"
+               Mode="@DrawerMode.Push"
+               MiniMode="true"
+               Expanded="@Expanded"
+               ExpandedChanged="@OnExpandedChanged"
+               @bind-SelectedItem="@SelectedItem"
+               TextField="@nameof(DrawerItem.Text)"
+               IconField="@nameof(DrawerItem.Icon)"
+               SeparatorField="@nameof(DrawerItem.IsSeparator)"
+               Class="app-drawer">
+    <ItemTemplate Context="item">
+        @if (item != null && item.IsSeparator)
+        {
+            <div class="k-drawer-separator"></div>
+        }        
+        else if (item != null && item.IsLogout)
+        {
+            <form action="Account/Logout" method="post" style="margin: 0; padding: 0;">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <button type="submit" class="drawer-logout-button">
+                    <div class="drawer-item-content">
+                        @if (item.Icon != null)
+                        {
+                            <TelerikSvgIcon Icon="@item.Icon" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                        }
+                        @if (Expanded)
+                        {
+                            <span class="drawer-item-text">@item.Text</span>
+                        }
+                    </div>
+                </button>
+            </form>
+        }
+        else if (item != null && !string.IsNullOrEmpty(item.Url))
+        {
+            <NavLink href="@item.Url" class="drawer-nav-link" Match="@GetNavLinkMatch(item.Url)">
+                <div class="drawer-item-content">
+                    @if (item.Icon != null)
+                    {
+                        <TelerikSvgIcon Icon="@item.Icon" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                    }
+                    @if (Expanded)
+                    {
+                        <span class="drawer-item-text">@item.Text</span>
+                    }
+                </div>
+            </NavLink>
+        }
+    </ItemTemplate>
+    <DrawerContent>
+        @Content
+    </DrawerContent>
+</TelerikDrawer>
+
+@code {
+    [Parameter]
+    public RenderFragment? Content { get; set; }
+
+    private TelerikDrawer<DrawerItem>? DrawerRef { get; set; }
+    private DrawerItem? SelectedItem { get; set; }
+    private bool Expanded { get; set; } = true;
+    private string? currentUrl;
+
+    private List<DrawerItem> NavigationItems { get; set; } = new();
+
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        await LoadNavigationItems();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadNavigationItems();
+    }
+
+    private async Task LoadNavigationItems()
+    {
+        if (AuthenticationState is not null)
+        {
+            var authState = await AuthenticationState;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated ?? false)
+            {
+                NavigationItems = GetAuthenticatedItems(user.Identity.Name ?? "User");
+            }
+            else
+            {
+                NavigationItems = GetAnonymousItems();
+            }
+            
+            UpdateSelectedItem();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        UpdateSelectedItem();
+        StateHasChanged();
+    }
+
+    private void UpdateSelectedItem()
+    {        
+        var normalizedUrl = string.IsNullOrEmpty(currentUrl) ? "/" : "/" + currentUrl.TrimStart('/');
+
+        var matchingItem = NavigationItems
+            .Where(item => !item.IsSeparator && !item.IsLogout && !string.IsNullOrEmpty(item.Url))
+            .OrderByDescending(item => item.Url?.Length ?? 0)
+            .FirstOrDefault(item =>
+            {
+                var itemUrl = item.Url;
+                if (string.IsNullOrEmpty(itemUrl))
+                    return false;
+                
+                itemUrl = itemUrl.StartsWith("/") ? itemUrl : "/" + itemUrl;
+                
+                if (normalizedUrl.Equals(itemUrl, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                
+                if (itemUrl != "/" && normalizedUrl.StartsWith(itemUrl + "/", StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                return false;
+            });
+
+        if (matchingItem != null)
+        {
+            SelectedItem = matchingItem;
+        }
+    }
+
+    private List<DrawerItem> GetAuthenticatedItems(string userName)
+    {
+        return new List<DrawerItem>
+        {           
+
+            new DrawerItem
+            {
+                Text = "Dashboard",
+                Icon = SvgIcon.ChartLineMarkers,
+                Url = "/"
+            },
+            new DrawerItem
+            {
+                Text = "Accounts",
+                Icon = SvgIcon.Dollar,
+                Url = "/finance/accounts"
+            },
+            new DrawerItem
+            {
+                Text = "Transactions",
+                Icon = SvgIcon.ArrowsLeftRight,
+                Url = "/finance/transactions"
+            },
+            new DrawerItem
+            {
+                Text = "Categories",
+                Icon = SvgIcon.Grid,
+                Url = "/finance/categories"
+            },
+            new DrawerItem
+            {
+                Text = "Budget",
+                Icon = SvgIcon.ChartPie,
+                Url = "/finance/budget"
+            },
+            new DrawerItem
+            {
+                Text = "Reports",
+                Icon = SvgIcon.ChartLine,
+                Url = "/finance/reports"
+            },
+            
+            new DrawerItem { IsSeparator = true, Url = null },            
+
+            new DrawerItem
+            {
+                Text = "Profile",
+                Icon = SvgIcon.User,
+                Url = "/Account/Manage"
+            },
+            new DrawerItem
+            {
+                Text = "Logout",
+                Icon = SvgIcon.Logout,
+                IsLogout = true,
+                Url = null
+            }
+        };
+    }
+
+    private List<DrawerItem> GetAnonymousItems()
+    {
+        return new List<DrawerItem>
+        {
+            new DrawerItem
+            {
+                Text = "Home",
+                Icon = SvgIcon.Home,
+                Url = "/"
+            },
+
+            new DrawerItem { IsSeparator = true, Url = null },            
+
+            new DrawerItem
+            {
+                Text = "Register",
+                Icon = SvgIcon.Plus,
+                Url = "/Account/Register"
+            },
+            new DrawerItem
+            {
+                Text = "Login",
+                Icon = SvgIcon.Login,
+                Url = "/Account/Login"
+            }
+        };
+    }
+    private void OnExpandedChanged(bool newValue)
+    {        
+        Expanded = newValue;
+    }
+
+    private NavLinkMatch GetNavLinkMatch(string url)
+    {        
+        if (url == "/")
+            return NavLinkMatch.All;
+        
+        if (url.StartsWith("/finance/"))
+            return NavLinkMatch.Prefix;
+        
+        return NavLinkMatch.All;
+    }
+
+    public async Task ToggleDrawer()
+    {
+        if (DrawerRef != null)
+        {
+            await DrawerRef.ToggleAsync();
+        }
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
