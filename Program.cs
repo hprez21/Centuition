@@ -75,12 +75,15 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 //Azure OpenAI Client Configuration
 var key = builder.Configuration["AzureOPENAI:Key"] 
     ?? throw new InvalidOperationException("AzureOPENAI:Key not configured. See the README.md section '3. Configure AI Service' for setup instructions.");
-
+var endpoint = builder.Configuration["AzureOPENAI:Endpoint"]
+    ?? throw new InvalidOperationException("AzureOPENAI:Endpoint not configured. See the README.md section '3. Configure AI Service' for setup instructions.");
+var deploymentName = builder.Configuration["AzureOPENAI:DeploymentName"]
+    ?? throw new InvalidOperationException("AzureOPENAI:DeploymentName not configured. See the README.md section '3. Configure AI Service' for setup instructions.");
 builder.Services
     .AddChatClient(new AzureOpenAIClient(
-            new Uri("your-azure-endpoint"),
+            new Uri(endpoint),
         new ApiKeyCredential(key))
-    .GetChatClient("your-deployment-name").AsIChatClient());
+    .GetChatClient(deploymentName).AsIChatClient());
 
 ////OpenAI Client Configuration
 //var key = builder.Configuration["OPENAI_API_KEY"]
