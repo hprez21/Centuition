@@ -21,7 +21,7 @@
 
 ### Required Software
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (Preview)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [SQL Server](https://www.microsoft.com/sql-server) or [SQL Server LocalDB](https://docs.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb)
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) (17.8+) or [VS Code](https://code.visualstudio.com/) with C# Dev Kit extension
 - [Telerik UI for Blazor License](https://www.telerik.com/blazor-ui) (Trial or Commercial)
