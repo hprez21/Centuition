@@ -73,33 +73,23 @@ builder.Services.Configure<RequestLocalizationOptions>(options =>
 });
 
 //Azure OpenAI Client Configuration
-var key = builder.Configuration["AzureOPENAI:Key"];
-if (!string.IsNullOrEmpty(key))
-{
-    builder.Services
-        .AddChatClient(new AzureOpenAIClient(
-             new Uri("your-azure-endpoint"),
-            new ApiKeyCredential(key))
-        .GetChatClient("your-deployment-name").AsIChatClient());
-}
-else
-{
-    Debug.WriteLine("Warning: AzureOPENAI:Key not configured. AI features will not be available.");
-}
+var key = builder.Configuration["AzureOPENAI:Key"] 
+    ?? throw new InvalidOperationException("AzureOPENAI:Key not configured. See the README.md section '3. Configure AI Service' for setup instructions.");
+
+builder.Services
+    .AddChatClient(new AzureOpenAIClient(
+            new Uri("your-azure-endpoint"),
+        new ApiKeyCredential(key))
+    .GetChatClient("your-deployment-name").AsIChatClient());
 
 ////OpenAI Client Configuration
-//var key = builder.Configuration["OPENAI_API_KEY"];
-//if (!string.IsNullOrEmpty(key))
-//{
-//    builder.Services
-//        .AddChatClient(new OpenAIClient(
-//            new ApiKeyCredential(key))
-//        .GetChatClient("openai-model").AsIChatClient());
-//}
-//else
-//{
-//    Debug.WriteLine("Warning: AzureOPENAI:Key not configured. AI features will not be available.");
-//}
+//var key = builder.Configuration["OPENAI_API_KEY"]
+//    ?? throw new InvalidOperationException("OPENAI_API_KEY not configured. See the README.md section '3. Configure AI Service' for setup instructions.");
+//
+//builder.Services
+//    .AddChatClient(new OpenAIClient(
+//        new ApiKeyCredential(key))
+//    .GetChatClient("openai-model").AsIChatClient());
 
 var app = builder.Build();
 
