@@ -1,0 +1,97 @@
+@using System.Globalization
+@using CentuitionApp.Data
+@using CentuitionApp.Helpers
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Transaction Details</h5>
+        <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                       Size="@ThemeConstants.Button.Size.Small"
+                       OnClick="@HandleExport"
+                       Icon="@SvgIcon.FileExcel">
+            Export to Excel
+        </TelerikButton>
+    </div>
+    <div class="card-body">
+        <TelerikGrid @ref="@gridRef"
+                     Data="@Transactions"
+                     Pageable="true"
+                     PageSize="20"
+                     Sortable="true"
+                     FilterMode="@GridFilterMode.None"
+                     Groupable="true"
+                     Resizable="true"
+                     Height="500px">
+            <GridToolBarTemplate>
+                <GridSearchBox DebounceDelay="200" Placeholder="Search transactions..." Width="300px" />
+            </GridToolBarTemplate>
+            <GridColumns>
+                <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="120px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <span>@item.Date.ToString("MMM dd, yyyy")</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.Type)" Title="Type" Width="100px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <span class="badge @FinanceUIHelpers.GetTransactionTypeBadgeClass(item.Type)">
+                            @item.Type.ToString()
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.Description)" Title="Description" />
+                <GridColumn Title="Category" Width="150px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        @if (item.Category != null)
+                        {
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle me-2" 
+                                     style="width: 12px; height: 12px; background-color: @item.Category.Color;"></div>
+                                <span>@item.Category.Name</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Account" Width="130px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <span>@item.Account?.Name</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.Amount)" Title="Amount" Width="130px" TextAlign="@ColumnTextAlign.Right">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                            var color = item.Type == TransactionType.Income ? "text-success" :
+                                        item.Type == TransactionType.Expense ? "text-danger" : "text-info";
+                            var sign = item.Type == TransactionType.Income ? "+" :
+                                       item.Type == TransactionType.Expense ? "-" : "";
+                        }
+                        <span class="@color fw-bold">@sign@item.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                    </Template>
+                </GridColumn>
+            </GridColumns>
+            <GridAggregates>
+                <GridAggregate Field="@nameof(Transaction.Amount)" Aggregate="@GridAggregateType.Sum" />
+                <GridAggregate Field="@nameof(Transaction.Amount)" Aggregate="@GridAggregateType.Count" />
+            </GridAggregates>
+            <GridExport>
+                <GridExcelExport FileName="ReportTransactions" AllPages="true" />
+            </GridExport>
+        </TelerikGrid>
+    </div>
+</div>

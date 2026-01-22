@@ -1,0 +1,44 @@
+@using System.Globalization
+
+<div class="row mb-4 g-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Total Budget</h6>
+                <h3 class="text-primary mb-0">@TotalBudget.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</h3>
+                <small class="text-muted">@BudgetCount categories budgeted</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Total Spent</h6>
+                <h3 class="@(TotalSpent > TotalBudget ? "text-danger" : "text-warning") mb-0">
+                    @TotalSpent.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                </h3>
+                <small class="text-muted">@OverallPercentage.ToString("0")% of budget</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="text-muted mb-2">Remaining</h6>
+                <h3 class="@(TotalRemaining >= 0 ? "text-success" : "text-danger") mb-0">
+                    @TotalRemaining.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                </h3>
+                <small class="text-muted">
+                    @if (TotalRemaining >= 0)
+                    {
+                        <span>Under budget</span>
+                    }
+                    else
+                    {
+                        <span>Over budget</span>
+                    }
+                </small>
+            </div>
+        </div>
+    </div>
+</div>

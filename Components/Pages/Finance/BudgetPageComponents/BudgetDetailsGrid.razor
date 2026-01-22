@@ -1,0 +1,92 @@
+@using System.Globalization
+@using CentuitionApp.Data
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Budget Details</h5>
+    </div>
+    <div class="card-body">
+        <TelerikGrid Data="@Budgets"
+                     Pageable="true"
+                     PageSize="10"
+                     Sortable="true"
+                     OnDelete="@OnDelete"
+                     ConfirmDelete="true"
+                     Height="400px">
+            <GridColumns>
+                <GridColumn Title="Category" Width="200px">
+                    <Template>
+                        @{
+                            var budget = (Budget)context;
+                        }
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle me-2"
+                                 style="width: 16px; height: 16px; background-color: @(budget.Category?.Color ?? "#6c757d");"></div>
+                            <span>@(budget.Category?.Name ?? "Unknown")</span>
+                        </div>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Budget.Amount)" Title="Budget Amount" Width="150px" TextAlign="@ColumnTextAlign.Center">
+                    <Template>
+                        @{
+                            var budget = (Budget)context;
+                        }
+                        <span class="fw-medium">@budget.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Budget.SpentAmount)" Title="Spent" Width="150px" TextAlign="@ColumnTextAlign.Center">
+                    <Template>
+                        @{
+                            var budget = (Budget)context;
+                        }
+                        <span class="@(budget.SpentAmount > budget.Amount ? "text-danger" : "")">
+                            @budget.SpentAmount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Remaining" Width="150px" TextAlign="@ColumnTextAlign.Center">
+                    <Template>
+                        @{
+                            var budget = (Budget)context;
+                        }
+                        <span class="@(budget.RemainingAmount >= 0 ? "text-success" : "text-danger") fw-medium">
+                            @budget.RemainingAmount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Progress" Width="200px">
+                    <Template>
+                        @{
+                            var budget = (Budget)context;
+                        }
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width: 100px;">
+                                <TelerikProgressBar Value="@((double)Math.Min(budget.PercentageUsed, 100))"
+                                                    Max="100"
+                                                    Class="@(budget.IsOverBudget ? "progress-danger" : budget.PercentageUsed >= 80 ? "progress-warning" : "")">
+                                </TelerikProgressBar>
+                            </div>
+                            <span class="small">@Math.Round(budget.PercentageUsed, 0)%</span>
+                        </div>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Budget.IsActive)" Title="Status" Width="100px">
+                    <Template>
+                        @{
+                            var budget = (Budget)context;
+                        }
+                        <TelerikBadge ThemeColor="@(budget.IsActive ? ThemeConstants.Badge.ThemeColor.Success : ThemeConstants.Badge.ThemeColor.Light)"
+                                      Rounded="@ThemeConstants.Badge.Rounded.Large"
+                                      Position="@BadgePosition.Inline">
+                            @(budget.IsActive ? "Active" : "Inactive")
+                        </TelerikBadge>
+                    </Template>
+                </GridColumn>
+                <GridCommandColumn Width="180px" Title="Actions">
+                    <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@OnEdit">Edit</GridCommandButton>
+                    <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                </GridCommandColumn>
+            </GridColumns>
+        </TelerikGrid>
+    </div>
+</div>

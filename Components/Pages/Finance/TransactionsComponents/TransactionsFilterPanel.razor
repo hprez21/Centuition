@@ -1,0 +1,57 @@
+@using CentuitionApp.Data
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Date Range</label>
+                <TelerikDateRangePicker StartValue="@FilterStartDate"
+                                        StartValueChanged="@((DateTime? value) => OnFilterStartDateChanged.InvokeAsync(value))"
+                                        EndValue="@FilterEndDate"
+                                        EndValueChanged="@((DateTime? value) => OnFilterEndDateChanged.InvokeAsync(value))"
+                                        Format="yyyy-MM-dd" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Type</label>
+                <TelerikDropDownList Data="@TransactionTypeOptions"
+                                     Value="@FilterType"
+                                     ValueChanged="@((TransactionType? value) => OnFilterTypeChanged.InvokeAsync(value))"
+                                     TextField="Text"
+                                     ValueField="Value"
+                                     Width="100%" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Account</label>
+                <TelerikDropDownList Data="@AccountOptions"
+                                     Value="@FilterAccountId"
+                                     ValueChanged="@((int? value) => OnFilterAccountIdChanged.InvokeAsync(value))"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="All Accounts"
+                                     Width="100%" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Category</label>
+                <TelerikDropDownList Data="@CategoryOptions"
+                                     Value="@FilterCategoryId"
+                                     ValueChanged="@((int? value) => OnFilterCategoryIdChanged.InvokeAsync(value))"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="All Categories"
+                                     Width="100%" />
+            </div>
+            <div class="col-md-3">
+                <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               OnClick="@OnApplyFilters"
+                               Icon="@SvgIcon.Filter">
+                    Apply Filters
+                </TelerikButton>
+                <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@OnClearFilters"
+                               Icon="@SvgIcon.FilterClear">
+                    Clear
+                </TelerikButton>
+            </div>
+        </div>
+    </div>
+</div>

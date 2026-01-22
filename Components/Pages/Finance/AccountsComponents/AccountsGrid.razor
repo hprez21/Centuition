@@ -1,0 +1,100 @@
+@using System.Globalization
+@using CentuitionApp.Data
+@using CentuitionApp.Helpers
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <TelerikGrid Data="@Accounts"
+                     Pageable="true"
+                     PageSize="10"
+                     Sortable="true"
+                     FilterMode="@GridFilterMode.FilterMenu"
+                     Groupable="true"
+                     Resizable="true"
+                     OnDelete="@OnDelete"
+                     ConfirmDelete="true"
+                     Height="500px">
+            <GridToolBarTemplate>
+                <GridSearchBox DebounceDelay="200" Placeholder="Search accounts..." Width="300px" />
+            </GridToolBarTemplate>
+            <GridColumns>
+                <GridColumn Field="@nameof(Account.Name)" Title="Account Name" Width="200px">
+                    <Template>
+                        @{
+                            var account = (Account)context;
+                        }
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle me-2 d-flex align-items-center justify-content-center"
+                                 style="width: 32px; height: 32px; background-color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)20;">
+                                <span style="color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)">
+                                    <TelerikSvgIcon Icon="@FinanceUIHelpers.GetAccountIcon(account.AccountType)"
+                                                    Size="@ThemeConstants.SvgIcon.Size.Small" />
+                                </span>
+                            </div>
+                            <span class="fw-medium">@account.Name</span>
+                        </div>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Account.AccountType)" Title="Type" Width="140px">
+                    <Template>
+                        @{
+                            var account = (Account)context;
+                        }
+                        <span class="badge @FinanceUIHelpers.GetAccountTypeBadgeClass(account.AccountType)">
+                            @account.AccountType.ToString()
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Account.InitialBalance)" Title="Initial Balance" Width="150px" TextAlign="@ColumnTextAlign.Right">
+                    <Template>
+                        @{
+                            var account = (Account)context;
+                        }
+                        <span>@account.InitialBalance.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Account.CurrentBalance)" Title="Current Balance" Width="150px" TextAlign="@ColumnTextAlign.Right">
+                    <Template>
+                        @{
+                            var account = (Account)context;
+                        }
+                        <span class="@(account.CurrentBalance >= 0 ? "text-success" : "text-danger") fw-bold">
+                            @account.CurrentBalance.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Account.Currency)" Title="Currency" Width="100px" />
+                <GridColumn Field="@nameof(Account.IsActive)" Title="Status" Width="100px">
+                    <Template>
+                        @{
+                            var account = (Account)context;
+                        }
+                        <span class="badge @(account.IsActive ? "bg-success" : "bg-secondary")">
+                            @(account.IsActive ? "Active" : "Inactive")
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Account.IncludeInTotal)" Title="In Total" Width="100px">
+                    <Template>
+                        @{
+                            var account = (Account)context;
+                        }
+                        @if (account.IncludeInTotal)
+                        {
+                            <TelerikSvgIcon Icon="@SvgIcon.Check" ThemeColor="@ThemeConstants.SvgIcon.ThemeColor.Success" />
+                        }
+                        else
+                        {
+                            <TelerikSvgIcon Icon="@SvgIcon.X" ThemeColor="@ThemeConstants.SvgIcon.ThemeColor.Error" />
+                        }
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Account.Description)" Title="Description" />
+                <GridCommandColumn Width="180px" Title="Actions">
+                    <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@OnEdit">Edit</GridCommandButton>
+                    <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                </GridCommandColumn>
+            </GridColumns>
+        </TelerikGrid>
+    </div>
+</div>

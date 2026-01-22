@@ -1,0 +1,35 @@
+<div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0">
+            <h5 class="mb-0">Spending by Category</h5>
+        </div>
+        <div class="card-body">
+            @if (Data != null && Data.Any())
+            {
+                <TelerikChart Height="@Height">
+                    <ChartSeriesItems>
+                        <ChartSeries Type="ChartSeriesType.Donut"
+                                     Data="@Data"
+                                     Field="@nameof(CategorySpending.TotalAmount)"
+                                     CategoryField="@nameof(CategorySpending.CategoryName)"
+                                     ColorField="@nameof(CategorySpending.CategoryColor)">
+                            <ChartSeriesLabels Visible="true"
+                                               Format="$#,##0"
+                                               Position="ChartSeriesLabelsPosition.OutsideEnd" />
+                        </ChartSeries>
+                    </ChartSeriesItems>
+                    <ChartLegend Visible="true" Position="ChartLegendPosition.Bottom" />
+                    <ChartTooltip Visible="true" />
+                </TelerikChart>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+                    <TelerikSvgIcon Icon="@SvgIcon.ChartPie" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                    <p class="mt-2">No expense data available</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+

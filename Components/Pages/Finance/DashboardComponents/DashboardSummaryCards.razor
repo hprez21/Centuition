@@ -1,0 +1,46 @@
+<div class="row mb-4 g-3">
+    <!-- Total Balance Card -->
+    <div class="col-md-6 col-lg-3">
+        <IconSummaryCard Title="Total Balance"
+                         Value="@TotalBalance"
+                         Icon="@SvgIcon.Dollar"
+                         IconBackgroundColor="primary"
+                         IconColor="primary"
+                         DynamicValueColor="true"
+                         Subtitle="@($"Across {AccountsCount} accounts")" />
+    </div>
+
+    <!-- Period Income Card -->
+    <div class="col-md-6 col-lg-3">
+        <IconSummaryCard Title="Income"
+                         Value="@PeriodIncome"
+                         Icon="@SvgIcon.ArrowUp"
+                         IconBackgroundColor="success"
+                         IconColor="success"
+                         ValueColor="success"
+                         Subtitle="@PeriodLabel" />
+    </div>
+
+    <!-- Period Expenses Card -->
+    <div class="col-md-6 col-lg-3">
+        <IconSummaryCard Title="Expenses"
+                         Value="@PeriodExpenses"
+                         Icon="@SvgIcon.ArrowDown"
+                         IconBackgroundColor="danger"
+                         IconColor="danger"
+                         ValueColor="danger"
+                         Subtitle="@PeriodLabel" />
+    </div>
+
+    <!-- Net Savings Card -->
+    <div class="col-md-6 col-lg-3">
+        <IconSummaryCard Title="Net Savings"
+                         Value="@PeriodNetSavings"
+                         Icon="@SvgIcon.ChartLineMarkers"
+                         IconBackgroundColor="info"
+                         IconColor="info"
+                         DynamicValueColor="true"
+                         Subtitle="@PeriodLabel" />
+    </div>
+</div>
+

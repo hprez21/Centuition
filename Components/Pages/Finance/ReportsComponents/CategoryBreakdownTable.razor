@@ -1,0 +1,68 @@
+@using System.Globalization
+@using CentuitionApp.Data
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Category Breakdown</h5>
+    </div>
+    <div class="card-body">
+        <TelerikGrid Data="@CategorySpending"
+                     Pageable="true"
+                     PageSize="10"
+                     Sortable="true"
+                     Height="400px">
+            <GridColumns>
+                <GridColumn Title="Category" Width="250px">
+                    <Template>
+                        @{
+                            var item = (CategorySpending)context;
+                        }
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle me-2"
+                                 style="width: 16px; height: 16px; background-color: @item.CategoryColor;"></div>
+                            <span class="fw-medium">@item.CategoryName</span>
+                        </div>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Total Spent" Width="150px" TextAlign="@ColumnTextAlign.Right">
+                    <Template>
+                        @{
+                            var item = (CategorySpending)context;
+                        }
+                        <span class="fw-medium text-danger">@item.TotalAmount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Transactions" Width="120px" TextAlign="@ColumnTextAlign.Center">
+                    <Template>
+                        @{
+                            var item = (CategorySpending)context;
+                        }
+                        <span>@item.TransactionCount</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="% of Total" Width="150px">
+                    <Template>
+                        @{
+                            var item = (CategorySpending)context;
+                        }
+                        <div class="d-flex align-items-center gap-2">
+                            <div style="width: 80px;">
+                                <TelerikProgressBar Value="@item.Percentage" Max="100" Class="k-progressbar-sm" />
+                            </div>
+                            <span>@item.Percentage.ToString("0.0")%</span>
+                        </div>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Avg per Transaction" Width="150px" TextAlign="@ColumnTextAlign.Right">
+                    <Template>
+                        @{
+                            var item = (CategorySpending)context;
+                            var avg = item.TransactionCount > 0 ? item.TotalAmount / item.TransactionCount : 0;
+                        }
+                        <span>@avg.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                    </Template>
+                </GridColumn>
+            </GridColumns>
+        </TelerikGrid>
+    </div>
+</div>

@@ -1,0 +1,117 @@
+@using CentuitionApp.Data
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <TelerikTabStrip ActiveTabIndex="@ActiveTabIndex"
+                         ActiveTabIndexChanged="@OnActiveTabIndexChanged">
+            <TabStripTab Title="Expense Categories">
+                <div class="py-3">
+                    <TelerikGrid Data="@ExpenseCategories"
+                                 Pageable="true"
+                                 PageSize="10"
+                                 Sortable="true"
+                                 FilterMode="@GridFilterMode.None"
+                                 OnDelete="@OnDelete"
+                                 ConfirmDelete="true"
+                                 Height="450px">
+                        <GridToolBarTemplate>
+                            <GridSearchBox DebounceDelay="200" Placeholder="Search categories..." Width="300px" />
+                        </GridToolBarTemplate>
+                        <GridColumns>
+                            <GridColumn Field="@nameof(Category.Name)" Title="Category Name" Width="250px">
+                                <Template>
+                                    @{
+                                        var category = (Category)context;
+                                    }
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle me-2"
+                                             style="width: 24px; height: 24px; background-color: @category.Color;"></div>
+                                        <span class="fw-medium">@category.Name</span>
+                                        @if (category.IsSystem)
+                                        {
+                                            <TelerikBadge ThemeColor="@ThemeConstants.Badge.ThemeColor.Info"
+                                                          Class="ms-2"
+                                                          Position="@BadgePosition.Inline"
+                                                          Rounded="@ThemeConstants.Badge.Rounded.Large"
+                                                          Size="@ThemeConstants.Badge.Size.Small">
+                                                System
+                                            </TelerikBadge>
+                                        }
+                                    </div>
+                                </Template>
+                            </GridColumn>
+                            <GridColumn Field="@nameof(Category.Description)" Title="Description" />
+                            <GridColumn Field="@nameof(Category.Color)" Title="Color" Width="60px">
+                                <Template>
+                                    @{
+                                        var category = (Category)context;
+                                    }
+                                    <div style="width: 30px; height: 20px; background-color: @category.Color; border-radius: 4px;"></div>
+                                </Template>
+                            </GridColumn>
+                            <GridColumn Field="@nameof(Category.SortOrder)" Title="Order" Width="80px" />
+                            <GridCommandColumn Width="180px" Title="Actions">
+                                <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@OnEdit">Edit</GridCommandButton>
+                                <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                            </GridCommandColumn>
+                        </GridColumns>
+                    </TelerikGrid>
+                </div>
+            </TabStripTab>
+            <TabStripTab Title="Income Categories">
+                <div class="py-3">
+                    <TelerikGrid Data="@IncomeCategories"
+                                 Pageable="true"
+                                 PageSize="10"
+                                 Sortable="true"
+                                 FilterMode="@GridFilterMode.None"
+                                 OnDelete="@OnDelete"
+                                 ConfirmDelete="true"
+                                 Height="450px">
+                        <GridToolBarTemplate>
+                            <GridSearchBox DebounceDelay="200" Placeholder="Search categories..." Width="300px" />
+                        </GridToolBarTemplate>
+                        <GridColumns>
+                            <GridColumn Field="@nameof(Category.Name)" Title="Category Name" Width="250px">
+                                <Template>
+                                    @{
+                                        var category = (Category)context;
+                                    }
+                                    <div class="d-flex align-items-center">
+                                        <div class="rounded-circle me-2"
+                                             style="width: 24px; height: 24px; background-color: @category.Color;"></div>
+                                        <span class="fw-medium">@category.Name</span>
+                                        @if (category.IsSystem)
+                                        {
+                                            <TelerikBadge ThemeColor="@ThemeConstants.Badge.ThemeColor.Info"
+                                                          Class="ms-2"
+                                                          Position="@BadgePosition.Inline"
+                                                          Rounded="@ThemeConstants.Badge.Rounded.Large"
+                                                          Size="@ThemeConstants.Badge.Size.Small">
+                                                System
+                                            </TelerikBadge>
+                                        }
+                                    </div>
+                                </Template>
+                            </GridColumn>
+                            <GridColumn Field="@nameof(Category.Description)" Title="Description" />
+                            <GridColumn Field="@nameof(Category.Color)" Title="Color" Width="60px">
+                                <Template>
+                                    @{
+                                        var category = (Category)context;
+                                    }
+                                    <div style="width: 30px; height: 20px; background-color: @category.Color; border-radius: 4px;"></div>
+                                </Template>
+                            </GridColumn>
+                            <GridColumn Field="@nameof(Category.SortOrder)" Title="Order" Width="80px" />
+                            <GridCommandColumn Width="180px" Title="Actions">
+                                <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@OnEdit">Edit</GridCommandButton>
+                                <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                            </GridCommandColumn>
+                        </GridColumns>
+                    </TelerikGrid>
+                </div>
+            </TabStripTab>
+        </TelerikTabStrip>
+    </div>
+</div>

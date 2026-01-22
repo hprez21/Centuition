@@ -1,0 +1,36 @@
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Net Savings Trend</h5>
+    </div>
+    <div class="card-body">
+        @if (TrendData.Any())
+        {
+            <TelerikChart Height="300px">
+                <ChartSeriesItems>
+                    <ChartSeries Type="ChartSeriesType.Line"
+                                 Data="@TrendData"
+                                 Field="NetAmount"
+                                 CategoryField="Label"
+                                 Name="Net Savings"
+                                 Color="#9B59B6">
+                        <ChartSeriesLine Style="ChartSeriesLineStyle.Smooth" Width="3" />
+                        <ChartSeriesMarkers Visible="true" Size="8" />
+                    </ChartSeries>
+                </ChartSeriesItems>
+                <ChartCategoryAxes>
+                    <ChartCategoryAxis>
+                        <ChartCategoryAxisLabels>
+                            <ChartCategoryAxisLabelsRotation Angle="-45" />
+                        </ChartCategoryAxisLabels>
+                    </ChartCategoryAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                    <ChartValueAxis>
+                        <ChartValueAxisLabels Format="$#,##0" />
+                    </ChartValueAxis>
+                </ChartValueAxes>
+                <ChartTooltip Visible="true" />
+            </TelerikChart>
+        }
+    </div>
+</div>

@@ -1,0 +1,51 @@
+@using CentuitionApp.Data
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Budget vs Actual Spending</h5>
+    </div>
+    <div class="card-body">
+        @if (BudgetProgress.Any())
+        {
+            <TelerikChart Height="350px">
+                <ChartSeriesItems>
+                    <ChartSeries Type="ChartSeriesType.Bar"
+                                 Data="@BudgetProgress"
+                                 Field="BudgetAmount"
+                                 CategoryField="CategoryName"
+                                 Name="Budget"
+                                 Color="#3498DB">
+                    </ChartSeries>
+                    <ChartSeries Type="ChartSeriesType.Bar"
+                                 Data="@BudgetProgress"
+                                 Field="SpentAmount"
+                                 CategoryField="CategoryName"
+                                 Name="Spent"
+                                 Color="#F39C12">
+                    </ChartSeries>
+                </ChartSeriesItems>
+                <ChartCategoryAxes>
+                    <ChartCategoryAxis />
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                    <ChartValueAxis>
+                        <ChartValueAxisLabels Format="$#,##0" />
+                    </ChartValueAxis>
+                </ChartValueAxes>
+                <ChartLegend Visible="true" Position="ChartLegendPosition.Top" />
+                <ChartTooltip Visible="true" />
+            </TelerikChart>
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">
+                <TelerikSvgIcon Icon="@SvgIcon.ChartColumnClustered" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                <p class="mt-2">No budgets set for this month</p>
+                <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               OnClick="@OnCreateFirstBudget">
+                    Create Your First Budget
+                </TelerikButton>
+            </div>
+        }
+    </div>
+</div>

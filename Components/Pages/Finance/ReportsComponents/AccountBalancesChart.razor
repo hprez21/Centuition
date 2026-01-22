@@ -1,0 +1,41 @@
+@using CentuitionApp.Data
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Account Balances</h5>
+    </div>
+    <div class="card-body">
+        @if (Accounts.Any())
+        {
+            <TelerikChart Height="300px">
+                <ChartSeriesItems>
+                    <ChartSeries Type="ChartSeriesType.Column"
+                                 Data="@Accounts.Where(a => a.IsActive)"
+                                 Field="@nameof(Account.CurrentBalance)"
+                                 CategoryField="@nameof(Account.Name)"
+                                 ColorField="@nameof(Account.Color)">
+                    </ChartSeries>
+                </ChartSeriesItems>
+                <ChartCategoryAxes>
+                    <ChartCategoryAxis>
+                        <ChartCategoryAxisLabels>
+                            <ChartCategoryAxisLabelsRotation Angle="-45" />
+                        </ChartCategoryAxisLabels>
+                    </ChartCategoryAxis>
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                    <ChartValueAxis>
+                        <ChartValueAxisLabels Format="$#,##0" />
+                    </ChartValueAxis>
+                </ChartValueAxes>
+                <ChartTooltip Visible="true" />
+            </TelerikChart>
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">
+                <TelerikSvgIcon Icon="@SvgIcon.Folder" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                <p class="mt-2">No accounts found</p>
+            </div>
+        }
+    </div>
+</div>

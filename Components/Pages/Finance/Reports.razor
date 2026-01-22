@@ -1,54 +1,23 @@
 @page "/finance/reports"
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
-@using System.Globalization
 @using CentuitionApp.Data
-@using CentuitionApp.Services
+@using CentuitionApp.Components.Pages.Finance.ReportsComponents
+@using CentuitionApp.Components.Pages.Finance.DashboardComponents
 @attribute [Authorize]
-@inject ITransactionService TransactionService
-@inject IAccountService AccountService
-@inject ICategoryService CategoryService
-@inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveServer
 
 <PageTitle>Reports - Centuition</PageTitle>
 
 <div class="container-fluid py-4">
     <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <h1 class="h2 mb-1">Financial Reports</h1>
-                    <p class="text-muted mb-0">Analyze your financial data with charts and reports</p>
-                </div>
-                <div class="d-flex gap-2 align-items-center">
-                    <TelerikDateRangePicker @bind-StartValue="@reportStartDate"
-                                            @bind-EndValue="@reportEndDate"
-                                            Format="yyyy-MM-dd" />
-                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
-                                   OnClick="@LoadReportData"
-                                   Icon="@SvgIcon.ArrowRotateCw">
-                        Generate Report
-                    </TelerikButton>
-                </div>
-            </div>
-        </div>
-    </div>
+    <ReportsHeader StartDate="@reportStartDate"
+                   OnStartDateChanged="@((DateTime? value) => reportStartDate = value)"
+                   EndDate="@reportEndDate"
+                   OnEndDateChanged="@((DateTime? value) => reportEndDate = value)"
+                   OnGenerateReport="@LoadReportData" />
 
     <!-- Quick Date Filters -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <TelerikButtonGroup>
-                <TelerikButton OnClick="@(() => SetDateRange(DateRangeType.ThisMonth))">This Month</TelerikButton>
-                <TelerikButton OnClick="@(() => SetDateRange(DateRangeType.LastMonth))">Last Month</TelerikButton>
-                <TelerikButton OnClick="@(() => SetDateRange(DateRangeType.Last3Months))">Last 3 Months</TelerikButton>
-                <TelerikButton OnClick="@(() => SetDateRange(DateRangeType.Last6Months))">Last 6 Months</TelerikButton>
-                <TelerikButton OnClick="@(() => SetDateRange(DateRangeType.ThisYear))">This Year</TelerikButton>
-                <TelerikButton OnClick="@(() => SetDateRange(DateRangeType.LastYear))">Last Year</TelerikButton>
-            </TelerikButtonGroup>
-        </div>
-    </div>
+    <QuickDateFilters OnDateRangeSelected="@SetDateRange" />
 
     @if (isLoading)
     {
@@ -95,88 +64,12 @@
         <div class="row mb-4 g-3">
             <!-- Income vs Expenses Trend -->
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h5 class="mb-0">Income vs Expenses Trend</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (trendData.Any())
-                        {
-                            <TelerikChart Height="350px">
-                                <ChartSeriesItems>
-                                    <ChartSeries Type="ChartSeriesType.Area"
-                                                 Data="@trendData"
-                                                 Field="@nameof(TrendDataPoint.TotalIncome)"
-                                                 CategoryField="@nameof(TrendDataPoint.Label)"
-                                                 Name="Income"
-                                                 Color="#27AE60"
-                                                 Opacity="0.3">
-                                        <ChartSeriesLine Style="ChartSeriesLineStyle.Smooth" />
-                                    </ChartSeries>
-                                    <ChartSeries Type="ChartSeriesType.Area"
-                                                 Data="@trendData"
-                                                 Field="@nameof(TrendDataPoint.TotalExpenses)"
-                                                 CategoryField="@nameof(TrendDataPoint.Label)"
-                                                 Name="Expenses"
-                                                 Color="#E74C3C"
-                                                 Opacity="0.3">
-                                        <ChartSeriesLine Style="ChartSeriesLineStyle.Smooth" />
-                                    </ChartSeries>
-                                </ChartSeriesItems>
-                                <ChartCategoryAxes>
-                                    <ChartCategoryAxis />
-                                </ChartCategoryAxes>
-                                <ChartValueAxes>
-                                    <ChartValueAxis>
-                                        <ChartValueAxisLabels Format="$#,##0" />
-                                    </ChartValueAxis>
-                                </ChartValueAxes>
-                                <ChartLegend Visible="true" Position="ChartLegendPosition.Top" />
-                                <ChartTooltip Visible="true" />
-                            </TelerikChart>
-                        }
-                        else
-                        {
-                            <div class="text-center py-5 text-muted">
-                                <TelerikSvgIcon Icon="@SvgIcon.ChartAreaClustered" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
-                                <p class="mt-2">No data available for the selected period</p>
-                            </div>
-                        }
-                    </div>
-                </div>
+                <IncomeVsExpensesTrendChart TrendData="@trendData" />
             </div>
 
             <!-- Spending by Category -->
             <div class="col-lg-4">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h5 class="mb-0">Spending by Category</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (categorySpending.Any())
-                        {
-                            <TelerikChart Height="350px">
-                                <ChartSeriesItems>
-                                    <ChartSeries Type="ChartSeriesType.Donut"
-                                                 Data="@categorySpending.Take(8)"
-                                                 Field="@nameof(CategorySpending.TotalAmount)"
-                                                 CategoryField="@nameof(CategorySpending.CategoryName)"
-                                                 ColorField="@nameof(CategorySpending.CategoryColor)">
-                                    </ChartSeries>
-                                </ChartSeriesItems>
-                                <ChartLegend Visible="true" Position="ChartLegendPosition.Bottom" />
-                                <ChartTooltip Visible="true" />
-                            </TelerikChart>
-                        }
-                        else
-                        {
-                            <div class="text-center py-5 text-muted">
-                                <TelerikSvgIcon Icon="@SvgIcon.ChartPie" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
-                                <p class="mt-2">No expense data available</p>
-                            </div>
-                        }
-                    </div>
-                </div>
+                <CategorySpendingChart Data="@categorySpending" Height="400px" />
             </div>
         </div>
 
@@ -184,464 +77,27 @@
         <div class="row mb-4 g-3">
             <!-- Net Savings Trend -->
             <div class="col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h5 class="mb-0">Net Savings Trend</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (trendData.Any())
-                        {
-                            <TelerikChart Height="300px">
-                                <ChartSeriesItems>
-                                    <ChartSeries Type="ChartSeriesType.Line"
-                                                 Data="@trendData"
-                                                 Field="@nameof(TrendDataPoint.NetAmount)"
-                                                 CategoryField="@nameof(TrendDataPoint.Label)"
-                                                 Name="Net Savings"
-                                                 Color="#9B59B6">
-                                        <ChartSeriesLine Style="ChartSeriesLineStyle.Smooth" Width="3" />
-                                        <ChartSeriesMarkers Visible="true" Size="8" />
-                                    </ChartSeries>
-                                </ChartSeriesItems>
-                                <ChartCategoryAxes>
-                                    <ChartCategoryAxis>
-                                        <ChartCategoryAxisLabels>
-                                            <ChartCategoryAxisLabelsRotation Angle="-45" />
-                                        </ChartCategoryAxisLabels>
-                                    </ChartCategoryAxis>
-                                </ChartCategoryAxes>
-                                <ChartValueAxes>
-                                    <ChartValueAxis>
-                                        <ChartValueAxisLabels Format="$#,##0" />
-                                    </ChartValueAxis>
-                                </ChartValueAxes>
-                                <ChartTooltip Visible="true" />
-                            </TelerikChart>
-                        }
-                    </div>
-                </div>
+                <NetSavingsTrendChart TrendData="@trendData" />
             </div>
 
             <!-- Account Balances -->
             <div class="col-lg-6">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-header bg-transparent border-0">
-                        <h5 class="mb-0">Account Balances</h5>
-                    </div>
-                    <div class="card-body">
-                        @if (accounts.Any())
-                        {
-                            <TelerikChart Height="300px">
-                                <ChartSeriesItems>
-                                    <ChartSeries Type="ChartSeriesType.Column"
-                                                 Data="@accounts.Where(a => a.IsActive)"
-                                                 Field="@nameof(Account.CurrentBalance)"
-                                                 CategoryField="@nameof(Account.Name)"
-                                                 ColorField="@nameof(Account.Color)">
-                                    </ChartSeries>
-                                </ChartSeriesItems>
-                                <ChartCategoryAxes>
-                                    <ChartCategoryAxis>
-                                        <ChartCategoryAxisLabels>
-                                            <ChartCategoryAxisLabelsRotation Angle="-45" />
-                                        </ChartCategoryAxisLabels>
-                                    </ChartCategoryAxis>
-                                </ChartCategoryAxes>
-                                <ChartValueAxes>
-                                    <ChartValueAxis>
-                                        <ChartValueAxisLabels Format="$#,##0" />
-                                    </ChartValueAxis>
-                                </ChartValueAxes>
-                                <ChartTooltip Visible="true" />
-                            </TelerikChart>
-                        }
-                        else
-                        {
-                            <div class="text-center py-5 text-muted">
-                                <TelerikSvgIcon Icon="@SvgIcon.Folder" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
-                                <p class="mt-2">No accounts found</p>
-                            </div>
-                        }
-                    </div>
-                </div>
+                <AccountBalancesChart Accounts="@accounts" />
             </div>
         </div>
 
         <!-- Category Breakdown Table -->
         <div class="row mb-4">
             <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-transparent border-0">
-                        <h5 class="mb-0">Category Breakdown</h5>
-                    </div>
-                    <div class="card-body">
-                        <TelerikGrid Data="@categorySpending"
-                                     Pageable="true"
-                                     PageSize="10"
-                                     Sortable="true"
-                                     Height="400px">
-                            <GridColumns>
-                                <GridColumn Title="Category" Width="250px">
-                                    <Template>
-                                        @{
-                                            var item = (CategorySpending)context;
-                                        }
-                                        <div class="d-flex align-items-center">
-                                            <div class="rounded-circle me-2"
-                                                 style="width: 16px; height: 16px; background-color: @item.CategoryColor;"></div>
-                                            <span class="fw-medium">@item.CategoryName</span>
-                                        </div>
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Field="@nameof(CategorySpending.TotalAmount)" Title="Total Spent" Width="150px" TextAlign="@ColumnTextAlign.Right">
-                                    <Template>
-                                        @{
-                                            var item = (CategorySpending)context;
-                                        }
-                                        <span class="fw-medium text-danger">@item.TotalAmount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Field="@nameof(CategorySpending.TransactionCount)" Title="Transactions" Width="120px" TextAlign="@ColumnTextAlign.Center" />
-                                <GridColumn Field="@nameof(CategorySpending.Percentage)" Title="% of Total" Width="150px">
-                                    <Template>
-                                        @{
-                                            var item = (CategorySpending)context;
-                                        }
-                                        <div class="d-flex align-items-center gap-2">
-                                            <div style="width: 80px;">
-                                                <TelerikProgressBar Value="@((double)item.Percentage)"
-                                                                    Max="100">
-                                                </TelerikProgressBar>
-                                            </div>
-                                            <span>@item.Percentage.ToString("0.0")%</span>
-                                        </div>
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Title="Avg per Transaction" Width="150px" TextAlign="@ColumnTextAlign.Right">
-                                    <Template>
-                                        @{
-                                            var item = (CategorySpending)context;
-                                            var avg = item.TransactionCount > 0 ? item.TotalAmount / item.TransactionCount : 0;
-                                        }
-                                        <span>@avg.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
-                                    </Template>
-                                </GridColumn>
-                            </GridColumns>
-                        </TelerikGrid>
-                    </div>
-                </div>
+                <CategoryBreakdownTable CategorySpending="@categorySpending" />
             </div>
         </div>
 
         <!-- Transaction Details -->
         <div class="row">
             <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Transaction Details</h5>
-                        <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
-                                       Size="@ThemeConstants.Button.Size.Small"
-                                       OnClick="@ExportTransactions"
-                                       Icon="@SvgIcon.FileExcel">
-                            Export to Excel
-                        </TelerikButton>
-                    </div>
-                    <div class="card-body">
-                        <TelerikGrid @ref="@transactionGridRef"
-                                     Data="@allTransactions"
-                                     Pageable="true"
-                                     PageSize="20"
-                                     Sortable="true"
-                                     FilterMode="@GridFilterMode.None"
-                                     Groupable="true"
-                                     Resizable="true"
-                                     Height="500px">
-                            <GridToolBarTemplate>
-                                <GridSearchBox DebounceDelay="200" Placeholder="Search transactions..." Width="300px" />
-                            </GridToolBarTemplate>
-                            <GridColumns>
-                                <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="120px">
-                                    <Template>
-                                        @{
-                                            var item = (Transaction)context;
-                                        }
-                                        <span>@item.Date.ToString("MMM dd, yyyy")</span>
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Field="@nameof(Transaction.Type)" Title="Type" Width="100px">
-                                    <Template>
-                                        @{
-                                            var item = (Transaction)context;
-                                        }
-                                        <TelerikBadge ThemeColor="@GetTypeBadgeColor(item.Type)"
-                                                      Rounded="@ThemeConstants.Badge.Rounded.Large"
-                                                      Size="@ThemeConstants.Badge.Size.Small">
-                                            @item.Type.ToString()
-                                        </TelerikBadge>
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Field="@nameof(Transaction.Description)" Title="Description" />
-                                <GridColumn Title="Category" Width="150px">
-                                    <Template>
-                                        @{
-                                            var item = (Transaction)context;
-                                        }
-                                        @if (item.Category != null)
-                                        {
-                                            <div class="d-flex align-items-center">
-                                                <div class="rounded-circle me-2"
-                                                     style="width: 10px; height: 10px; background-color: @item.Category.Color;"></div>
-                                                <span>@item.Category.Name</span>
-                                            </div>
-                                        }
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Title="Account" Width="130px">
-                                    <Template>
-                                        @{
-                                            var item = (Transaction)context;
-                                        }
-                                        <span>@item.Account?.Name</span>
-                                    </Template>
-                                </GridColumn>
-                                <GridColumn Field="@nameof(Transaction.Amount)" Title="Amount" Width="130px" TextAlign="@ColumnTextAlign.Right">
-                                    <Template>
-                                        @{
-                                            var item = (Transaction)context;
-                                            var color = item.Type == TransactionType.Income ? "text-success" :
-                                                        item.Type == TransactionType.Expense ? "text-danger" : "text-info";
-                                            var sign = item.Type == TransactionType.Income ? "+" :
-                                                       item.Type == TransactionType.Expense ? "-" : "";
-                                        }
-                                        <span class="@color fw-bold">@sign@item.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
-                                    </Template>
-                                </GridColumn>
-                            </GridColumns>
-                            <GridAggregates>
-                                <GridAggregate Field="@nameof(Transaction.Amount)" Aggregate="@GridAggregateType.Sum" />
-                                <GridAggregate Field="@nameof(Transaction.Amount)" Aggregate="@GridAggregateType.Count" />
-                            </GridAggregates>
-                            <GridExport>
-                                <GridExcelExport FileName="ReportTransactions" AllPages="true" />
-                            </GridExport>
-                        </TelerikGrid>
-                    </div>
-                </div>
+                <TransactionDetailsGrid Transactions="@allTransactions" />
             </div>
         </div>
     }
 </div>
-
-@code {
-    private string? userId;
-    private bool isLoading = true;
-
-    private DateTime? reportStartDate;
-    private DateTime? reportEndDate;
-
-    private List<Transaction> allTransactions = new();
-    private List<Transaction> incomeTransactions = new();
-    private List<Transaction> expenseTransactions = new();
-    private List<TrendDataPoint> trendData = new();
-    private List<CategorySpending> categorySpending = new();
-    private List<Account> accounts = new();
-
-    private decimal totalIncome;
-    private decimal totalExpenses;
-    private decimal netSavings;
-    private decimal savingsRate;
-    private decimal avgDailyExpense;
-    private int dayCount;
-
-    private TelerikGrid<Transaction>? transactionGridRef;
-
-    /// <summary>
-    /// Flexible data point for trend charts - can represent a week, month, or other period
-    /// </summary>
-    private class TrendDataPoint
-    {
-        public string Label { get; set; } = string.Empty;
-        public decimal TotalIncome { get; set; }
-        public decimal TotalExpenses { get; set; }
-        public decimal NetAmount => TotalIncome - TotalExpenses;
-    }
-
-    private enum DateRangeType
-    {
-        ThisMonth,
-        LastMonth,
-        Last3Months,
-        Last6Months,
-        ThisYear,
-        LastYear
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        userId = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-        if (!string.IsNullOrEmpty(userId))
-        {
-            SetDateRange(DateRangeType.ThisMonth);
-            await LoadReportData();
-        }
-
-        isLoading = false;
-    }
-
-    private void SetDateRange(DateRangeType rangeType)
-    {
-        var today = DateTime.Today;
-
-        switch (rangeType)
-        {
-            case DateRangeType.ThisMonth:
-                reportStartDate = new DateTime(today.Year, today.Month, 1);
-                reportEndDate = reportStartDate.Value.AddMonths(1).AddDays(-1);
-                break;
-            case DateRangeType.LastMonth:
-                reportStartDate = new DateTime(today.Year, today.Month, 1).AddMonths(-1);
-                reportEndDate = reportStartDate.Value.AddMonths(1).AddDays(-1);
-                break;
-            case DateRangeType.Last3Months:
-                reportStartDate = new DateTime(today.Year, today.Month, 1).AddMonths(-2);
-                reportEndDate = today;
-                break;
-            case DateRangeType.Last6Months:
-                reportStartDate = new DateTime(today.Year, today.Month, 1).AddMonths(-5);
-                reportEndDate = today;
-                break;
-            case DateRangeType.ThisYear:
-                reportStartDate = new DateTime(today.Year, 1, 1);
-                reportEndDate = new DateTime(today.Year, 12, 31);
-                break;
-            case DateRangeType.LastYear:
-                reportStartDate = new DateTime(today.Year - 1, 1, 1);
-                reportEndDate = new DateTime(today.Year - 1, 12, 31);
-                break;
-        }
-    }
-
-    private async Task LoadReportData()
-    {
-        if (string.IsNullOrEmpty(userId) || !reportStartDate.HasValue || !reportEndDate.HasValue) return;
-
-        isLoading = true;
-        StateHasChanged();
-
-        allTransactions = await TransactionService.GetTransactionsAsync(userId, reportStartDate, reportEndDate);
-        accounts = await AccountService.GetAllAccountsAsync(userId);
-        categorySpending = await CategoryService.GetCategorySpendingAsync(userId, reportStartDate, reportEndDate);
-
-        trendData = GenerateTrendData(allTransactions, reportStartDate.Value, reportEndDate.Value);
-
-        incomeTransactions = allTransactions.Where(t => t.Type == TransactionType.Income).ToList();
-        expenseTransactions = allTransactions.Where(t => t.Type == TransactionType.Expense).ToList();
-
-        totalIncome = incomeTransactions.Sum(t => t.Amount);
-        totalExpenses = expenseTransactions.Sum(t => t.Amount);
-        netSavings = totalIncome - totalExpenses;
-        savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
-
-        dayCount = (reportEndDate.Value - reportStartDate.Value).Days + 1;
-        avgDailyExpense = dayCount > 0 ? totalExpenses / dayCount : 0;
-
-        isLoading = false;
-        StateHasChanged();
-    }
-
-    private List<TrendDataPoint> GenerateTrendData(List<Transaction> transactions, DateTime startDate, DateTime endDate)
-    {
-        var result = new List<TrendDataPoint>();
-        var nonTransferTransactions = transactions.Where(t => t.Type != TransactionType.Transfer).ToList();
-        
-        var startMonth = new DateTime(startDate.Year, startDate.Month, 1);
-        var endMonth = new DateTime(endDate.Year, endDate.Month, 1);
-        var monthCount = ((endMonth.Year - startMonth.Year) * 12) + endMonth.Month - startMonth.Month + 1;
-        
-        if (monthCount <= 1)
-        {
-            var weekStart = startDate;
-            var weekNumber = 1;
-            
-            while (weekStart <= endDate)
-            {
-                var weekEnd = weekStart.AddDays(6);
-                if (weekEnd > endDate) weekEnd = endDate;
-                
-                var weekTransactions = nonTransferTransactions
-                    .Where(t => t.Date >= weekStart && t.Date <= weekEnd)
-                    .ToList();
-                
-                result.Add(new TrendDataPoint
-                {
-                    Label = $"Week {weekNumber}",
-                    TotalIncome = weekTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
-                    TotalExpenses = weekTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)
-                });
-                
-                weekStart = weekEnd.AddDays(1);
-                weekNumber++;
-            }
-        }
-        else if (monthCount <= 3)
-        {
-            var weekStart = startDate;
-            
-            while (weekStart <= endDate)
-            {
-                var weekEnd = weekStart.AddDays(6);
-                if (weekEnd > endDate) weekEnd = endDate;
-                
-                var weekTransactions = nonTransferTransactions
-                    .Where(t => t.Date >= weekStart && t.Date <= weekEnd)
-                    .ToList();
-                
-                result.Add(new TrendDataPoint
-                {
-                    Label = $"{weekStart:MMM d}",
-                    TotalIncome = weekTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
-                    TotalExpenses = weekTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)
-                });
-                
-                weekStart = weekEnd.AddDays(1);
-            }
-        }
-        else
-        {
-            var currentMonth = startMonth;
-            
-            while (currentMonth <= endMonth)
-            {
-                var monthTransactions = nonTransferTransactions
-                    .Where(t => t.Date.Year == currentMonth.Year && t.Date.Month == currentMonth.Month)
-                    .ToList();
-                
-                result.Add(new TrendDataPoint
-                {
-                    Label = currentMonth.ToString("MMM yyyy"),
-                    TotalIncome = monthTransactions.Where(t => t.Type == TransactionType.Income).Sum(t => t.Amount),
-                    TotalExpenses = monthTransactions.Where(t => t.Type == TransactionType.Expense).Sum(t => t.Amount)
-                });
-                
-                currentMonth = currentMonth.AddMonths(1);
-            }
-        }
-        
-        return result;
-    }
-
-    private async Task ExportTransactions()
-    {
-        await transactionGridRef.SaveAsExcelFileAsync();
-    }
-
-    private string GetTypeBadgeColor(TransactionType type) => type switch
-    {
-        TransactionType.Income => ThemeConstants.Badge.ThemeColor.Success,
-        TransactionType.Expense => ThemeConstants.Badge.ThemeColor.Error,
-        TransactionType.Transfer => ThemeConstants.Badge.ThemeColor.Info,
-        _ => ThemeConstants.Badge.ThemeColor.Light
-    };
-}

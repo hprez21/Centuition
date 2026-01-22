@@ -1,0 +1,57 @@
+@inject NavigationManager Navigation
+
+<div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Accounts</h5>
+            <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                           Size="@ThemeConstants.Button.Size.Small"
+                           OnClick="@(() => Navigation.NavigateTo("/finance/accounts"))">
+                View All
+            </TelerikButton>
+        </div>
+        <div class="card-body p-0">
+            @if (Accounts != null && Accounts.Any())
+            {
+                <div class="list-group list-group-flush">
+                    @foreach (var account in Accounts.Take(MaxItems))
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center border-0">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle me-3 d-flex align-items-center justify-content-center"
+                                     style="width: 40px; height: 40px; background-color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)20;">
+                                    <span style="color: @(account.Color ?? FinanceUIHelpers.DefaultAccountColor)">
+                                        <TelerikSvgIcon Icon="@FinanceUIHelpers.GetAccountIcon(account.AccountType)" />
+                                    </span>
+                                </div>
+                                <div>
+                                    <div class="fw-medium">@account.Name</div>
+                                    <small class="text-muted">@account.AccountType.ToString()</small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <span class="@(account.CurrentBalance >= 0 ? "text-success" : "text-danger") fw-bold">
+                                    @account.CurrentBalance.ToString("C2", CultureInfo.GetCultureInfo("en-US"))
+                                </span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-4 text-muted">
+                    <TelerikSvgIcon Icon="@SvgIcon.Folder" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                    <p class="mt-2 mb-0">No accounts yet</p>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   Size="@ThemeConstants.Button.Size.Small"
+                                   Class="mt-2"
+                                   OnClick="@(() => Navigation.NavigateTo("/finance/accounts/new"))">
+                        Add Account
+                    </TelerikButton>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+

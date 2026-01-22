@@ -1,0 +1,91 @@
+@using CentuitionApp.Data
+@using static CentuitionApp.Components.Pages.Finance.BudgetPageComponents.BudgetPageHeader
+
+<TelerikWindow @bind-Visible="@IsVisible"
+               Width="500px"
+               Modal="true">
+    <WindowTitle>
+        @(IsEditing ? "Edit Budget" : "Create Budget")
+    </WindowTitle>
+    <WindowContent>
+        <EditForm Model="@Budget" OnValidSubmit="@OnSave">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Category <span class="text-danger">*</span></label>
+                <TelerikDropDownList Data="@AvailableCategories"
+                                     Value="@Budget.CategoryId"
+                                     ValueChanged="@OnCategoryChanged"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="Select category"
+                                     Width="100%"
+                                     Enabled="@(!IsEditing)">
+                    <ItemTemplate Context="categoryItem">
+                        @{
+                            var category = categoryItem as Category;
+                        }
+                        <div class="d-flex align-items-center">
+                            <div class="rounded-circle me-2"
+                                 style="width: 12px; height: 12px; background-color: @category?.Color;"></div>
+                            <span>@category?.Name</span>
+                        </div>
+                    </ItemTemplate>
+                </TelerikDropDownList>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Budget Amount <span class="text-danger">*</span></label>
+                <TelerikNumericTextBox Value="@Budget.Amount"
+                                       ValueChanged="@((decimal value) => Budget.Amount = value)"
+                                       Format="$#,##0.00"
+                                       Min="0"
+                                       Placeholder="0.00"
+                                       Width="100%" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Month</label>
+                    <TelerikDropDownList Data="@Months"
+                                         Value="@Budget.Month"
+                                         ValueChanged="@((int value) => Budget.Month = value)"
+                                         TextField="Name"
+                                         ValueField="Value"
+                                         Width="100%"
+                                         Enabled="@(!IsEditing)" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Year</label>
+                    <TelerikNumericTextBox Value="@Budget.Year"
+                                           ValueChanged="@((int value) => Budget.Year = value)"
+                                           Format="0"
+                                           Min="2020"
+                                           Max="2100"
+                                           Width="100%"
+                                           Enabled="@(!IsEditing)" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <TelerikCheckBox Value="@Budget.IsActive"
+                                 ValueChanged="@((bool value) => Budget.IsActive = value)"
+                                 Id="isActive" />
+                <label for="isActive" class="ms-2">Active Budget</label>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <TelerikButton ButtonType="@ButtonType.Button"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@OnCancel">
+                    Cancel
+                </TelerikButton>
+                <TelerikButton ButtonType="@ButtonType.Submit"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               Icon="@SvgIcon.Save">
+                    @(IsEditing ? "Update" : "Create")
+                </TelerikButton>
+            </div>
+        </EditForm>
+    </WindowContent>
+</TelerikWindow>

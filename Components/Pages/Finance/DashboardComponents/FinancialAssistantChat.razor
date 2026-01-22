@@ -1,0 +1,106 @@
+<div class="ai-chat-container @(IsOpen ? "open" : "")">
+    <!-- Chat Toggle Button -->
+    <TelerikButton Class="ai-chat-toggle-btn"
+                   ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                   Rounded="@ThemeConstants.Button.Rounded.Full"
+                   OnClick="@ToggleChat">
+        <TelerikSvgIcon Icon="@(IsOpen ? SvgIcon.X : SvgIcon.Comment)" Size="@ThemeConstants.SvgIcon.Size.Large" />
+    </TelerikButton>
+
+    <!-- Chat Panel -->
+    @if (IsOpen)
+    {
+        <div class="ai-chat-panel shadow-lg">
+            <div class="ai-chat-header d-flex justify-content-between align-items-center p-3 bg-primary text-white">
+                <div class="d-flex align-items-center">
+                    <TelerikSvgIcon Icon="@SvgIcon.Sparkles" Size="@ThemeConstants.SvgIcon.Size.Medium" Class="me-2" />
+                    <span class="fw-bold">Financial Assistant</span>
+                </div>
+                <TelerikButton FillMode="@ThemeConstants.Button.FillMode.Flat"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@ClearChat"
+                               Title="Clear chat">
+                    <TelerikSvgIcon Icon="@SvgIcon.Trash" />
+                </TelerikButton>
+            </div>
+            <TelerikChat @ref="@chatRef"
+                         Data="@chatMessages"
+                         AuthorId="@ChatCurrentUserId"
+                         TextField="@nameof(FinanceChatMessage.Content)"
+                         AuthorIdField="@nameof(FinanceChatMessage.AuthorId)"
+                         AuthorNameField="@nameof(FinanceChatMessage.AuthorName)"
+                         TimestampField="@nameof(FinanceChatMessage.Timestamp)"
+                         IsTypingField="@nameof(FinanceChatMessage.IsTyping)"
+                         Suggestions="@chatSuggestions"
+                         OnSendMessage="@OnChatSendMessage"
+                         OnSuggestionClick="@OnChatSuggestionClick"
+                         Height="400px"
+                         Width="100%">
+                <ReceiverMessageContentTemplate>
+                    <CentuitionApp.Components.Shared.MarkdownContent Message="@context.Message.Content" />
+                </ReceiverMessageContentTemplate>
+            </TelerikChat>
+        </div>
+    }
+</div>
+
+<style>
+    .ai-chat-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+
+    .ai-chat-toggle-btn {
+        width: 56px;
+        height: 56px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        transition: transform 0.2s ease;
+    }
+
+    .ai-chat-toggle-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .ai-chat-container.open .ai-chat-toggle-btn {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+    }
+
+    .ai-chat-panel {
+        position: absolute;
+        bottom: 70px;
+        right: 0;
+        width: 400px;
+        max-width: calc(100vw - 40px);
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        animation: slideUp 0.3s ease;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .ai-chat-header {
+        border-radius: 12px 12px 0 0;
+    }
+
+    @@media (max-width: 480px) {
+        .ai-chat-panel {
+            width: calc(100vw - 40px);
+            bottom: 70px;
+        }
+    }
+</style>
+

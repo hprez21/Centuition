@@ -1,0 +1,49 @@
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-transparent border-0">
+        <h5 class="mb-0">Income vs Expenses Trend</h5>
+    </div>
+    <div class="card-body">
+        @if (TrendData.Any())
+        {
+            <TelerikChart Height="350px">
+                <ChartSeriesItems>
+                    <ChartSeries Type="ChartSeriesType.Area"
+                                 Data="@TrendData"
+                                 Field="TotalIncome"
+                                 CategoryField="Label"
+                                 Name="Income"
+                                 Color="#27AE60"
+                                 Opacity="0.3">
+                        <ChartSeriesLine Style="ChartSeriesLineStyle.Smooth" />
+                    </ChartSeries>
+                    <ChartSeries Type="ChartSeriesType.Area"
+                                 Data="@TrendData"
+                                 Field="TotalExpenses"
+                                 CategoryField="Label"
+                                 Name="Expenses"
+                                 Color="#E74C3C"
+                                 Opacity="0.3">
+                        <ChartSeriesLine Style="ChartSeriesLineStyle.Smooth" />
+                    </ChartSeries>
+                </ChartSeriesItems>
+                <ChartCategoryAxes>
+                    <ChartCategoryAxis />
+                </ChartCategoryAxes>
+                <ChartValueAxes>
+                    <ChartValueAxis>
+                        <ChartValueAxisLabels Format="$#,##0" />
+                    </ChartValueAxis>
+                </ChartValueAxes>
+                <ChartLegend Visible="true" Position="ChartLegendPosition.Top" />
+                <ChartTooltip Visible="true" />
+            </TelerikChart>
+        }
+        else
+        {
+            <div class="text-center py-5 text-muted">
+                <TelerikSvgIcon Icon="@SvgIcon.ChartAreaClustered" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                <p class="mt-2">No data available for the selected period</p>
+            </div>
+        }
+    </div>
+</div>

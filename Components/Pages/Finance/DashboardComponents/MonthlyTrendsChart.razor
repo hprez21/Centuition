@@ -1,0 +1,56 @@
+<div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0">
+            <h5 class="mb-0">Income vs Expenses <small class="text-muted fw-normal">(Last 6 months)</small></h5>
+        </div>
+        <div class="card-body">
+            @if (Data != null && Data.Any())
+            {
+                <TelerikChart Height="@Height">
+                    <ChartSeriesItems>
+                        <ChartSeries Type="ChartSeriesType.Column"
+                                     Data="@Data"
+                                     Field="@nameof(TransactionSummary.TotalIncome)"
+                                     CategoryField="@nameof(TransactionSummary.MonthName)"
+                                     Name="Income"
+                                     Color="#27AE60">
+                        </ChartSeries>
+                        <ChartSeries Type="ChartSeriesType.Column"
+                                     Data="@Data"
+                                     Field="@nameof(TransactionSummary.TotalExpenses)"
+                                     CategoryField="@nameof(TransactionSummary.MonthName)"
+                                     Name="Expenses"
+                                     Color="#E74C3C">
+                        </ChartSeries>
+                        <ChartSeries Type="ChartSeriesType.Line"
+                                     Data="@Data"
+                                     Field="@nameof(TransactionSummary.NetAmount)"
+                                     CategoryField="@nameof(TransactionSummary.MonthName)"
+                                     Name="Net"
+                                     Color="#3498DB">
+                            <ChartSeriesMarkers Visible="true" />
+                        </ChartSeries>
+                    </ChartSeriesItems>
+                    <ChartCategoryAxes>
+                        <ChartCategoryAxis />
+                    </ChartCategoryAxes>
+                    <ChartValueAxes>
+                        <ChartValueAxis>
+                            <ChartValueAxisLabels Format="$#,##0" />
+                        </ChartValueAxis>
+                    </ChartValueAxes>
+                    <ChartLegend Visible="true" Position="ChartLegendPosition.Top" />
+                    <ChartTooltip Visible="true" />
+                </TelerikChart>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+                    <TelerikSvgIcon Icon="@SvgIcon.ChartColumnClustered" Size="@ThemeConstants.SvgIcon.Size.ExtraLarge" />
+                    <p class="mt-2">No trend data available</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+

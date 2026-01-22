@@ -1,0 +1,25 @@
+@using CentuitionApp.Data
+@using CentuitionApp.Components.Shared
+
+@if (BudgetProgress.Any())
+{
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Budget Progress</h5>
+            <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                           Size="@ThemeConstants.Button.Size.Small"
+                           OnClick="@OnCopyToNextMonth"
+                           Icon="@SvgIcon.Copy">
+                Copy to Next Month
+            </TelerikButton>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                @foreach (var progress in BudgetProgress)
+                {
+                    <BudgetProgressCard Progress="@progress" />
+                }
+            </div>
+        </div>
+    </div>
+}

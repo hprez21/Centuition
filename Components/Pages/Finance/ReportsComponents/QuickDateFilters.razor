@@ -1,0 +1,12 @@
+<div class="row mb-4">
+    <div class="col-12">
+        <TelerikButtonGroup>
+            <TelerikButton OnClick="@(() => OnDateRangeSelected.InvokeAsync(DateRangeType.ThisMonth))">This Month</TelerikButton>
+            <TelerikButton OnClick="@(() => OnDateRangeSelected.InvokeAsync(DateRangeType.LastMonth))">Last Month</TelerikButton>
+            <TelerikButton OnClick="@(() => OnDateRangeSelected.InvokeAsync(DateRangeType.Last3Months))">Last 3 Months</TelerikButton>
+            <TelerikButton OnClick="@(() => OnDateRangeSelected.InvokeAsync(DateRangeType.Last6Months))">Last 6 Months</TelerikButton>
+            <TelerikButton OnClick="@(() => OnDateRangeSelected.InvokeAsync(DateRangeType.ThisYear))">This Year</TelerikButton>
+            <TelerikButton OnClick="@(() => OnDateRangeSelected.InvokeAsync(DateRangeType.LastYear))">Last Year</TelerikButton>
+        </TelerikButtonGroup>
+    </div>
+</div>

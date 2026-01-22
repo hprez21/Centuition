@@ -1,0 +1,97 @@
+<TelerikDialog @bind-Visible="@IsVisible"
+               Title="Add Transaction"
+               Width="500px"
+               CloseOnOverlayClick="false">
+    <DialogContent>
+        <div class="mb-3">
+            <label class="form-label">Type</label>
+            <TelerikButtonGroup SelectionMode="@ButtonGroupSelectionMode.Single">
+                <ButtonGroupToggleButton Selected="@(Transaction.Type == TransactionType.Expense)"
+                                         SelectedChanged="@((bool selected) => { if(selected) { Transaction.Type = TransactionType.Expense; OnTransactionChanged.InvokeAsync(); } })">
+                    Expense
+                </ButtonGroupToggleButton>
+                <ButtonGroupToggleButton Selected="@(Transaction.Type == TransactionType.Income)"
+                                         SelectedChanged="@((bool selected) => { if(selected) { Transaction.Type = TransactionType.Income; OnTransactionChanged.InvokeAsync(); } })">
+                    Income
+                </ButtonGroupToggleButton>
+                <ButtonGroupToggleButton Selected="@(Transaction.Type == TransactionType.Transfer)"
+                                         SelectedChanged="@((bool selected) => { if(selected) { Transaction.Type = TransactionType.Transfer; OnTransactionChanged.InvokeAsync(); } })">
+                    Transfer
+                </ButtonGroupToggleButton>
+            </TelerikButtonGroup>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Amount</label>
+            <TelerikNumericTextBox @bind-Value="@Transaction.Amount"
+                                   Format="$#,##0.00"
+                                   Min="0"
+                                   Placeholder="0.00"
+                                   Width="100%"
+                                   OnChange="@((object _) => OnTransactionChanged.InvokeAsync())" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <TelerikTextBox @bind-Value="@Transaction.Description"
+                            Placeholder="Enter description"
+                            Width="100%"
+                            OnChange="@((object _) => OnTransactionChanged.InvokeAsync())" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Date</label>
+            <TelerikDatePicker @bind-Value="@Transaction.Date"
+                               Format="yyyy-MM-dd"
+                               Width="100%"
+                               OnChange="@((object _) => OnTransactionChanged.InvokeAsync())" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Account</label>
+            <TelerikDropDownList Data="@Accounts"
+                                 @bind-Value="@Transaction.AccountId"
+                                 TextField="Name"
+                                 ValueField="Id"
+                                 DefaultText="Select account"
+                                 Width="100%"
+                                 OnChange="@((object _) => OnTransactionChanged.InvokeAsync())" />
+        </div>
+
+        @if (Transaction.Type == TransactionType.Transfer)
+        {
+            <div class="mb-3">
+                <label class="form-label">To Account</label>
+                <TelerikDropDownList Data="@Accounts.Where(a => a.Id != Transaction.AccountId)"
+                                     @bind-Value="@DestinationAccountId"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="Select destination account"
+                                     Width="100%"
+                                     OnChange="@((object _) => OnTransactionChanged.InvokeAsync())" />
+            </div>
+        }
+        else
+        {
+            <div class="mb-3">
+                <label class="form-label">Category</label>
+                <TelerikDropDownList Data="@GetCategoriesForType(Transaction.Type)"
+                                     @bind-Value="@Transaction.CategoryId"
+                                     TextField="Name"
+                                     ValueField="Id"
+                                     DefaultText="Select category"
+                                     Width="100%"
+                                     OnChange="@((object _) => OnTransactionChanged.InvokeAsync())" />
+            </div>
+        }
+    </DialogContent>
+    <DialogButtons>
+        <TelerikButton OnClick="@(() => OnCancel.InvokeAsync())" ThemeColor="@ThemeConstants.Button.ThemeColor.Light">
+            Cancel
+        </TelerikButton>
+        <TelerikButton OnClick="@(() => OnSave.InvokeAsync())" ThemeColor="@ThemeConstants.Button.ThemeColor.Primary">
+            Save Transaction
+        </TelerikButton>
+    </DialogButtons>
+</TelerikDialog>
+

@@ -1,0 +1,89 @@
+@inject NavigationManager Navigation
+
+<div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Recent Transactions</h5>
+            <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                           Size="@ThemeConstants.Button.Size.Small"
+                           OnClick="@(() => Navigation.NavigateTo("/finance/transactions"))">
+                View All
+            </TelerikButton>
+        </div>
+        <div class="card-body p-0">
+            @if (Transactions != null && Transactions.Any())
+            {
+                <TelerikGrid Data="@Transactions"
+                             Sortable="false"
+                             Pageable="false"
+                             Class="border-0">
+                    <GridColumns>
+                        <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="100px">
+                            <Template>
+                                @{
+                                    var item = (Transaction)context;
+                                }
+                                <span>@item.Date.ToString("MMM dd")</span>
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Field="@nameof(Transaction.Description)" Title="Description">
+                            <Template>
+                                @{
+                                    var item = (Transaction)context;
+                                }
+                                <span>@item.Description</span>
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Field="@nameof(Transaction.Category)" Title="Category" Width="140px">
+                            <Template>
+                                @{
+                                    var item = (Transaction)context;
+                                }
+                                @if (item.Category != null)
+                                {
+                                    <span class="badge" style="background-color: @item.Category.Color;">
+                                        @item.Category.Name
+                                    </span>
+                                }
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Field="@nameof(Transaction.Account)" Title="Account" Width="150px">
+                            <Template>
+                                @{
+                                    var item = (Transaction)context;
+                                }
+                                <span>@item.Account?.Name</span>
+                            </Template>
+                        </GridColumn>
+                        <GridColumn Field="@nameof(Transaction.Amount)" Title="Amount" Width="120px" TextAlign="@ColumnTextAlign.Right">
+                            <Template>
+                                @{
+                                    var item = (Transaction)context;
+                                    var color = item.Type == TransactionType.Income ? "text-success" : 
+                                                item.Type == TransactionType.Expense ? "text-danger" : "text-info";
+                                    var sign = item.Type == TransactionType.Income ? "+" : 
+                                               item.Type == TransactionType.Expense ? "-" : "";
+                                }
+                                <span class="@color fw-bold">@sign@item.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                            </Template>
+                        </GridColumn>
+                    </GridColumns>
+                </TelerikGrid>
+            }
+            else
+            {
+                <div class="text-center py-4 text-muted">
+                    <TelerikSvgIcon Icon="@SvgIcon.TableUnmerge" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                    <p class="mt-2 mb-0">No transactions yet</p>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                                   Size="@ThemeConstants.Button.Size.Small"
+                                   Class="mt-2"
+                                   OnClick="@OnAddTransaction">
+                        Add Transaction
+                    </TelerikButton>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+

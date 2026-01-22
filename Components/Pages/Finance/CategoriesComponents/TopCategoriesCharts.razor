@@ -1,0 +1,80 @@
+@using CentuitionApp.Data
+
+<div class="row mt-4 g-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="mb-0 text-danger">
+                    <TelerikSvgIcon Icon="@SvgIcon.ArrowDown" /> Top Expense Categories
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (ExpenseCategorySpending.Any())
+                {
+                    <TelerikChart Height="250px">
+                        <ChartSeriesItems>
+                            <ChartSeries Type="ChartSeriesType.Bar"
+                                         Data="@ExpenseCategorySpending.Take(5)"
+                                         Field="TotalAmount"
+                                         CategoryField="CategoryName"
+                                         ColorField="CategoryColor">
+                                <ChartSeriesLabels Visible="true" Format="$#,##0" />
+                            </ChartSeries>
+                        </ChartSeriesItems>
+                        <ChartValueAxes>
+                            <ChartValueAxis>
+                                <ChartValueAxisLabels Format="$#,##0" />
+                            </ChartValueAxis>
+                        </ChartValueAxes>
+                        <ChartTooltip Visible="true" />
+                    </TelerikChart>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <TelerikSvgIcon Icon="@SvgIcon.ChartColumnClustered" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                        <p class="mt-2 mb-0">No spending data available</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="mb-0 text-success">
+                    <TelerikSvgIcon Icon="@SvgIcon.ArrowUp" /> Top Income Categories
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (IncomeCategorySpending.Any())
+                {
+                    <TelerikChart Height="250px">
+                        <ChartSeriesItems>
+                            <ChartSeries Type="ChartSeriesType.Bar"
+                                         Data="@IncomeCategorySpending.Take(5)"
+                                         Field="TotalAmount"
+                                         CategoryField="CategoryName"
+                                         ColorField="CategoryColor">
+                                <ChartSeriesLabels Visible="true" Format="$#,##0" />
+                            </ChartSeries>
+                        </ChartSeriesItems>
+                        <ChartValueAxes>
+                            <ChartValueAxis>
+                                <ChartValueAxisLabels Format="$#,##0" />
+                            </ChartValueAxis>
+                        </ChartValueAxes>
+                        <ChartTooltip Visible="true" />
+                    </TelerikChart>
+                }
+                else
+                {
+                    <div class="text-center py-4 text-muted">
+                        <TelerikSvgIcon Icon="@SvgIcon.ChartColumnClustered" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                        <p class="mt-2 mb-0">No income data available</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

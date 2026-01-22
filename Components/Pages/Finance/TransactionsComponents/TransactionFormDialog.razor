@@ -1,0 +1,131 @@
+@using CentuitionApp.Data
+
+<TelerikWindow @bind-Visible="@IsVisible"
+               Width="600px"
+               Modal="true">
+    <WindowTitle>
+        @(IsEditing ? "Edit Transaction" : "Add Transaction")
+    </WindowTitle>
+    <WindowContent>
+        <EditForm Model="@Transaction" OnValidSubmit="@HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label">Transaction Type</label>
+                <TelerikButtonGroup SelectionMode="@ButtonGroupSelectionMode.Single" Class="w-100">
+                    <ButtonGroupToggleButton Selected="@(Transaction.Type == TransactionType.Expense)"
+                                             SelectedChanged="@((bool selected) => { if(selected) OnTypeChanged(TransactionType.Expense); })"
+                                             Class="flex-fill">
+                        <TelerikSvgIcon Icon="@SvgIcon.ArrowDown" /> Expense
+                    </ButtonGroupToggleButton>
+                    <ButtonGroupToggleButton Selected="@(Transaction.Type == TransactionType.Income)"
+                                             SelectedChanged="@((bool selected) => { if(selected) OnTypeChanged(TransactionType.Income); })"
+                                             Class="flex-fill">
+                        <TelerikSvgIcon Icon="@SvgIcon.ArrowUp" /> Income
+                    </ButtonGroupToggleButton>
+                    <ButtonGroupToggleButton Selected="@(Transaction.Type == TransactionType.Transfer)"
+                                             SelectedChanged="@((bool selected) => { if(selected) OnTypeChanged(TransactionType.Transfer); })"
+                                             Class="flex-fill">
+                        <TelerikSvgIcon Icon="@SvgIcon.ArrowsSwap" /> Transfer
+                    </ButtonGroupToggleButton>
+                </TelerikButtonGroup>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Amount <span class="text-danger">*</span></label>
+                    <TelerikNumericTextBox @bind-Value="@Transaction.Amount"
+                                           Format="$#,##0.00"
+                                           Min="0"
+                                           Placeholder="0.00"
+                                           Width="100%" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    <TelerikDatePicker @bind-Value="@Transaction.Date"
+                                       Format="yyyy-MM-dd"
+                                       Width="100%" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description <span class="text-danger">*</span></label>
+                <TelerikTextBox @bind-Value="@Transaction.Description"
+                                Placeholder="Enter transaction description"
+                                Width="100%" />
+                <ValidationMessage For="@(() => Transaction.Description)" class="text-danger small" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">@(Transaction.Type == TransactionType.Transfer ? "From Account" : "Account") <span class="text-danger">*</span></label>
+                    <TelerikDropDownList Data="@Accounts"
+                                         @bind-Value="@Transaction.AccountId"
+                                         TextField="Name"
+                                         ValueField="Id"
+                                         DefaultText="Select account"
+                                         Width="100%" />
+                </div>
+                @if (Transaction.Type == TransactionType.Transfer)
+                {
+                    <div class="col-md-6">
+                        <label class="form-label">To Account <span class="text-danger">*</span></label>
+                        <TelerikDropDownList Data="@GetAvailableDestinationAccounts()"
+                                             Value="@DestinationAccountId"
+                                             ValueChanged="@((int? value) => OnDestinationAccountIdChanged.InvokeAsync(value))"
+                                             TextField="Name"
+                                             ValueField="Id"
+                                             DefaultText="Select destination"
+                                             Width="100%" />
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-6">
+                        <label class="form-label">Category</label>
+                        <TelerikDropDownList Data="@GetCategoriesForType()"
+                                             @bind-Value="@Transaction.CategoryId"
+                                             TextField="Name"
+                                             ValueField="Id"
+                                             DefaultText="Select category"
+                                             Width="100%" />
+                    </div>
+                }
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notes</label>
+                <TelerikTextArea @bind-Value="@Transaction.Notes"
+                                 Placeholder="Additional notes (optional)"
+                                 Rows="2"
+                                 Width="100%" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tags</label>
+                <TelerikTextBox @bind-Value="@Transaction.Tags"
+                                Placeholder="Enter tags separated by commas"
+                                Width="100%" />
+                <small class="text-muted">Separate multiple tags with commas</small>
+            </div>
+
+            <div class="mb-3">
+                <TelerikCheckBox @bind-Value="@Transaction.IsReconciled" Id="isReconciled" />
+                <label for="isReconciled" class="ms-2">Mark as reconciled</label>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <TelerikButton ButtonType="@ButtonType.Button"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@(() => IsVisible = false)">
+                    Cancel
+                </TelerikButton>
+                <TelerikButton ButtonType="@ButtonType.Submit"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               Icon="@SvgIcon.Save">
+                    @(IsEditing ? "Update" : "Save")
+                </TelerikButton>
+            </div>
+        </EditForm>
+    </WindowContent>
+</TelerikWindow>

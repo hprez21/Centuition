@@ -1,0 +1,39 @@
+@inject NavigationManager Navigation
+
+@if (BudgetProgress != null && BudgetProgress.Any())
+{
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Budget Progress - @DateTime.Now.ToString("MMMM yyyy")</h5>
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                                   Size="@ThemeConstants.Button.Size.Small"
+                                   OnClick="@(() => Navigation.NavigateTo("/finance/budget"))">
+                        Manage Budgets
+                    </TelerikButton>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        @foreach (var budget in BudgetProgress.Take(MaxItems))
+                        {
+                            <div class="col-md-6 col-lg-4">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="fw-medium">@budget.CategoryName</span>
+                                    <span class="@(budget.IsOverBudget ? "text-danger" : "text-muted")">
+                                        @budget.SpentAmount.ToString("C0", CultureInfo.GetCultureInfo("en-US")) / @budget.BudgetAmount.ToString("C0", CultureInfo.GetCultureInfo("en-US"))
+                                    </span>
+                                </div>
+                                <TelerikProgressBar Value="@((double)Math.Min(budget.PercentageUsed, 100))"
+                                                    Max="100"
+                                                    Class="@(budget.IsOverBudget ? "progress-danger" : budget.PercentageUsed >= 80 ? "progress-warning" : "")">
+                                </TelerikProgressBar>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+

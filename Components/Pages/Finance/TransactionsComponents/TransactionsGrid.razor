@@ -1,0 +1,140 @@
+@using System.Globalization
+@using CentuitionApp.Data
+@using CentuitionApp.Helpers
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <TelerikGrid @ref="@gridRef"
+                     Data="@Transactions"
+                     Pageable="true"
+                     PageSize="15"
+                     Sortable="true"
+                     FilterMode="@GridFilterMode.None"
+                     Groupable="true"
+                     Resizable="true"
+                     SelectionMode="@GridSelectionMode.Multiple"
+                     SelectedItems="@SelectedTransactions"
+                     SelectedItemsChanged="@((IEnumerable<Transaction> items) => OnSelectedItemsChanged.InvokeAsync(items))"
+                     OnDelete="@HandleDelete"
+                     ConfirmDelete="true"
+                     Height="600px">
+            <GridToolBarTemplate>
+                <GridSearchBox DebounceDelay="200" Placeholder="Search transactions..." Width="300px" />
+                @if (SelectedTransactions.Any())
+                {
+                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Error"
+                                   OnClick="@(() => OnDeleteSelected.InvokeAsync())"
+                                   Icon="@SvgIcon.Trash">
+                        Delete Selected (@SelectedTransactions.Count())
+                    </TelerikButton>
+                }
+            </GridToolBarTemplate>
+            <GridColumns>
+                <GridCheckboxColumn Width="50px" SelectAll="true" />
+                <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="120px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <span>@item.Date.ToString("MMM dd, yyyy")</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.Type)" Title="Type" Width="100px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <span class="badge @FinanceUIHelpers.GetTransactionTypeBadgeClass(item.Type)">
+                            @item.Type.ToString()
+                        </span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.Description)" Title="Description">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <div>
+                            <span class="fw-medium">@item.Description</span>
+                            @if (!string.IsNullOrEmpty(item.Notes))
+                            {
+                                <br />
+                                <small class="text-muted">@(item.Notes.Length > 50 ? item.Notes.Substring(0, 50) + "..." : item.Notes)</small>
+                            }
+                        </div>
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Category" Width="150px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        @if (item.Category != null)
+                        {
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle me-2" 
+                                     style="width: 12px; height: 12px; background-color: @item.Category.Color;"></div>
+                                <span>@item.Category.Name</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-muted">-</span>
+                        }
+                    </Template>
+                </GridColumn>
+                <GridColumn Title="Account" Width="150px">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        <span>@item.Account?.Name</span>
+                        @if (item.Type == TransactionType.Transfer && item.DestinationAccount != null)
+                        {
+                            <br />
+                            <small class="text-muted">→ @item.DestinationAccount.Name</small>
+                        }
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.Amount)" Title="Amount" Width="130px" TextAlign="@ColumnTextAlign.Right">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                            var color = item.Type == TransactionType.Income ? "text-success" :
+                                        item.Type == TransactionType.Expense ? "text-danger" : "text-info";
+                            var sign = item.Type == TransactionType.Income ? "+" :
+                                       item.Type == TransactionType.Expense ? "-" : "";
+                        }
+                        <span class="@color fw-bold">@sign@item.Amount.ToString("C2", CultureInfo.GetCultureInfo("en-US"))</span>
+                    </Template>
+                </GridColumn>
+                <GridColumn Field="@nameof(Transaction.IsReconciled)" Title="Reconciled" Width="100px" TextAlign="@ColumnTextAlign.Center">
+                    <Template>
+                        @{
+                            var item = (Transaction)context;
+                        }
+                        @if (item.IsReconciled)
+                        {
+                            <span title="Reconciled" class="text-success">
+                                <TelerikSvgIcon Icon="@SvgIcon.CheckCircle" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                            </span>
+                        }
+                        else
+                        {
+                            <span title="Not reconciled" class="text-secondary">
+                                <TelerikSvgIcon Icon="@SvgIcon.Clock" Size="@ThemeConstants.SvgIcon.Size.Large" />
+                            </span>
+                        }
+                    </Template>
+                </GridColumn>
+                <GridCommandColumn Width="180px" Title="Actions">
+                    <GridCommandButton Command="Edit" Icon="@SvgIcon.Pencil" ThemeColor="@ThemeConstants.Button.ThemeColor.Info" OnClick="@HandleEdit">Edit</GridCommandButton>
+                    <GridCommandButton Command="Delete" Icon="@SvgIcon.Trash" ThemeColor="@ThemeConstants.Button.ThemeColor.Error">Delete</GridCommandButton>
+                </GridCommandColumn>
+            </GridColumns>
+            <GridExport>
+                <GridExcelExport FileName="Transactions" AllPages="true" />
+            </GridExport>
+        </TelerikGrid>
+    </div>
+</div>

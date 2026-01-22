@@ -1,0 +1,94 @@
+@using CentuitionApp.Data
+@using CentuitionApp.Helpers
+
+<TelerikWindow @bind-Visible="@IsVisible"
+               Width="500px"
+               Modal="true">
+    <WindowTitle>
+        @(IsEditing ? "Edit Account" : "Create Account")
+    </WindowTitle>
+    <WindowContent>
+        <EditForm Model="@Account" OnValidSubmit="@OnSave">
+            <DataAnnotationsValidator />
+            
+            <div class="mb-3">
+                <label class="form-label">Account Name <span class="text-danger">*</span></label>
+                <TelerikTextBox Value="@Account.Name"
+                                ValueChanged="@((string value) => Account.Name = value)"
+                                Placeholder="e.g., Main Checking"
+                                Width="100%" />
+                <ValidationMessage For="@(() => Account.Name)" class="text-danger small" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Account Type <span class="text-danger">*</span></label>
+                <TelerikDropDownList Data="@AccountTypes"
+                                     Value="@Account.AccountType"
+                                     ValueChanged="@((AccountType value) => Account.AccountType = value)"
+                                     Width="100%" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Initial Balance</label>
+                    <TelerikNumericTextBox Value="@Account.InitialBalance"
+                                           ValueChanged="@((decimal value) => Account.InitialBalance = value)"
+                                           Format="$#,##0.00"
+                                           Width="100%"
+                                           Enabled="@(!IsEditing)" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Currency</label>
+                    <TelerikDropDownList Data="@Currencies"
+                                         Value="@Account.Currency"
+                                         ValueChanged="@((string value) => Account.Currency = value)"
+                                         Width="100%" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <TelerikTextArea Value="@Account.Description"
+                                 ValueChanged="@((string value) => Account.Description = value)"
+                                 Placeholder="Optional description"
+                                 Rows="2"
+                                 Width="100%" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Color</label>
+                <TelerikColorPicker Value="@AccountColor"
+                                    ValueChanged="@OnColorChanged"
+                                    View="@ColorPickerView.Palette" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-6">
+                    <TelerikCheckBox Value="@Account.IsActive"
+                                     ValueChanged="@((bool value) => Account.IsActive = value)"
+                                     Id="isActive" />
+                    <label for="isActive" class="ms-2">Active Account</label>
+                </div>
+                <div class="col-6">
+                    <TelerikCheckBox Value="@Account.IncludeInTotal"
+                                     ValueChanged="@((bool value) => Account.IncludeInTotal = value)"
+                                     Id="includeInTotal" />
+                    <label for="includeInTotal" class="ms-2">Include in Total</label>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <TelerikButton ButtonType="@ButtonType.Button"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Light"
+                               OnClick="@OnCancel">
+                    Cancel
+                </TelerikButton>
+                <TelerikButton ButtonType="@ButtonType.Submit"
+                               ThemeColor="@ThemeConstants.Button.ThemeColor.Primary"
+                               Icon="@SvgIcon.Save">
+                    @(IsEditing ? "Update" : "Create")
+                </TelerikButton>
+            </div>
+        </EditForm>
+    </WindowContent>
+</TelerikWindow>
