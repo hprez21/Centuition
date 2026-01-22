@@ -93,26 +93,18 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=(localdb)\
   Server=your-server;Database=CentuitionDB;User Id=your-username;Password=your-password;TrustServerCertificate=True
   ```
 
-### 3. Configure AI Service (Optional)
+### 3. Configure AI Service
 
-The application supports both **Azure OpenAI** and **OpenAI** for AI-powered financial analysis. By default, Azure OpenAI is enabled.
+The application supports both **Azure OpenAI** and **OpenAI** for AI-powered financial analysis. The AI assistant uses **tool calling** to retrieve only the necessary financial data on-demand, making it more efficient.
 
 #### Option A: Azure OpenAI (Default)
 
-1. **Update the endpoint and deployment name** in `Program.cs`:
-
-```csharp
-builder.Services
-    .AddChatClient(new AzureOpenAIClient(
-         new Uri("your-azure-endpoint"),  // Replace with your Azure OpenAI endpoint (e.g., https://your-resource.openai.azure.com/)
-        new ApiKeyCredential(key))
-    .GetChatClient("your-deployment-name").AsIChatClient());  // Replace with your deployment name (e.g., gpt-4o-mini)
-```
-
-2. **Configure the API Key** using User Secrets (recommended):
+Configure the following settings using User Secrets (recommended):
 
 ```bash
 dotnet user-secrets set "AzureOPENAI:Key" "your-azure-openai-key"
+dotnet user-secrets set "AzureOPENAI:Endpoint" "https://your-resource.openai.azure.com/"
+dotnet user-secrets set "AzureOPENAI:DeploymentName" "your-deployment-name"
 ```
 
 Or using environment variables:
@@ -120,35 +112,24 @@ Or using environment variables:
 ```bash
 # Windows PowerShell
 $env:AzureOPENAI__Key = "your-azure-openai-key"
+$env:AzureOPENAI__Endpoint = "https://your-resource.openai.azure.com/"
+$env:AzureOPENAI__DeploymentName = "your-deployment-name"
 
 # Linux/macOS
 export AzureOPENAI__Key="your-azure-openai-key"
+export AzureOPENAI__Endpoint="https://your-resource.openai.azure.com/"
+export AzureOPENAI__DeploymentName="your-deployment-name"
 ```
 
 #### Option B: OpenAI
 
-1. **Uncomment the OpenAI section** in `Program.cs` and comment out the Azure OpenAI section:
+1. **Comment the Azure OpenAI section** in `Program.cs` and **uncomment the OpenAI section**.
 
-```csharp
-//Azure OpenAI Client Configuration - Comment this section
-//var key = builder.Configuration["AzureOPENAI:Key"];
-//...
-
-//OpenAI Client Configuration - Uncomment this section
-var key = builder.Configuration["OPENAI_API_KEY"];
-if (!string.IsNullOrEmpty(key))
-{
-    builder.Services
-        .AddChatClient(new OpenAIClient(
-            new ApiKeyCredential(key))
-        .GetChatClient("openai-model").AsIChatClient());  // Replace with model name (e.g., gpt-4o-mini, gpt-4o)
-}
-```
-
-2. **Configure the API Key**:
+2. **Configure the API Key and Model** using User Secrets:
 
 ```bash
 dotnet user-secrets set "OPENAI_API_KEY" "your-openai-api-key"
+dotnet user-secrets set "OPENAI_MODEL" "gpt-4o"  # Optional, defaults to gpt-4o
 ```
 
 Or using environment variables:
@@ -156,12 +137,18 @@ Or using environment variables:
 ```bash
 # Windows PowerShell
 $env:OPENAI_API_KEY = "your-openai-api-key"
+$env:OPENAI_MODEL = "gpt-4o"
 
 # Linux/macOS
 export OPENAI_API_KEY="your-openai-api-key"
+export OPENAI_MODEL="gpt-4o"
 ```
 
-> **Note**: If you don't configure an AI service, the application will still work but AI-powered features (financial summaries, recommendations) will not be available.
+**Available OpenAI models:**
+- See the latest model availability and guidance in the OpenAI documentation:
+- https://platform.openai.com/docs/models
+
+> **Note**: The AI service is **required** for the Financial Assistant chat feature. If not configured, the application will throw an error at startup.
 
 ### 4. Configure Telerik UI for Blazor
 
@@ -254,14 +241,31 @@ CentuitionApp/
 
 In `Program.cs`, update the model/deployment name:
 
+In `Program.cs`, specify the Azure deployment name or the OpenAI model name used by `GetChatClient`.
+
+- Azure OpenAI: pass your deployment name to `GetChatClient` (example: `"your-deployment-name"`).
+- OpenAI: pass the model name to `GetChatClient` or set it via `OPENAI_MODEL` (recommended for flexibility).
+
+Models and capabilities change over time — check the official OpenAI model documentation for the latest options and guidance:
+
+https://platform.openai.com/docs/models
+
+Example patterns:
+
 ```csharp
 // Azure OpenAI - use your deployment name
 .GetChatClient("your-deployment-name")
 
-// OpenAI - use the model name
-.GetChatClient("gpt-4o-mini")   // Faster, cheaper
-.GetChatClient("gpt-4o")        // More capable
-.GetChatClient("gpt-3.5-turbo") // Legacy
+// OpenAI - use the model name (you can read from config/env var)
+.GetChatClient(Configuration["OPENAI_MODEL"] ?? "gpt-4o")
+```
+
+To set the model via User Secrets or environment variable:
+
+```bash
+dotnet user-secrets set "OPENAI_MODEL" "gpt-4o"
+# or
+export OPENAI_MODEL="gpt-4o"
 ```
 
 ### Configure Culture/Language

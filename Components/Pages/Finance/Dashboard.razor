@@ -88,18 +88,8 @@
 
 <TelerikNotification @ref="@notificationRef" Class="notification-container" />
 
-<!-- AI Financial Assistant Chat -->
-<FinancialAssistantChat UserId="@userId"
-                        Accounts="@accounts"
-                        RecentTransactions="@recentTransactions"
-                        CategorySpending="@categorySpending"
-                        BudgetProgress="@budgetProgress"
-                        MonthlyTrends="@monthlyTrends"
-                        TotalBalance="@totalBalance"
-                        PeriodIncome="@periodIncome"
-                        PeriodExpenses="@periodExpenses"
-                        PeriodNetSavings="@periodNetSavings"
-                        PeriodLabel="@GetPeriodLabel()" />
+<!-- AI Financial Assistant Chat - Uses tool calling to fetch data on-demand -->
+<FinancialAssistantChat UserId="@userId" />
 
 <style>
     /* Period Filter Button Group Styles */
