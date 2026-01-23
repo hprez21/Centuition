@@ -8,12 +8,12 @@ namespace CentuitionApp.Services;
 /// </summary>
 public class TransactionService : ITransactionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
     private readonly IAccountService _accountService;
 
-    public TransactionService(ApplicationDbContext context, IAccountService accountService)
+    public TransactionService(IDbContextFactory<ApplicationDbContext> contextFactory, IAccountService accountService)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _accountService = accountService;
     }
 
@@ -25,7 +25,8 @@ public class TransactionService : ITransactionService
         int? accountId = null,
         TransactionType? type = null)
     {
-        var query = _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Transactions
             .Include(t => t.Account)
             .Include(t => t.Category)
             .Include(t => t.DestinationAccount)
@@ -64,7 +65,8 @@ public class TransactionService : ITransactionService
 
     public async Task<Transaction?> GetTransactionByIdAsync(int id, string userId)
     {
-        return await _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Transactions
             .Include(t => t.Account)
             .Include(t => t.Category)
             .Include(t => t.DestinationAccount)
@@ -73,19 +75,21 @@ public class TransactionService : ITransactionService
 
     public async Task<Transaction> CreateTransactionAsync(Transaction transaction)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         transaction.CreatedAt = DateTime.UtcNow;
 
         await UpdateAccountBalancesForNewTransaction(transaction);
 
-        _context.Transactions.Add(transaction);
-        await _context.SaveChangesAsync();
+        context.Transactions.Add(transaction);
+        await context.SaveChangesAsync();
 
         return transaction;
     }
 
     public async Task<Transaction> UpdateTransactionAsync(Transaction transaction)
     {
-        var existing = await _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.Transactions
             .FirstOrDefaultAsync(t => t.Id == transaction.Id && t.UserId == transaction.UserId);
 
         if (existing == null)
@@ -109,14 +113,15 @@ public class TransactionService : ITransactionService
 
         await UpdateAccountBalancesForNewTransaction(existing);
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return existing;
     }
 
     public async Task<bool> DeleteTransactionAsync(int id, string userId)
     {
-        var transaction = await _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var transaction = await context.Transactions
             .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
         if (transaction == null)
@@ -126,15 +131,16 @@ public class TransactionService : ITransactionService
 
         await ReverseTransactionEffect(transaction);
 
-        _context.Transactions.Remove(transaction);
-        await _context.SaveChangesAsync();
+        context.Transactions.Remove(transaction);
+        await context.SaveChangesAsync();
 
         return true;
     }
 
     public async Task<decimal> GetTotalIncomeAsync(string userId, DateTime? startDate = null, DateTime? endDate = null)
     {
-        var query = _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Transactions
             .Where(t => t.UserId == userId && t.Type == TransactionType.Income);
 
         if (startDate.HasValue)
@@ -154,7 +160,8 @@ public class TransactionService : ITransactionService
 
     public async Task<decimal> GetTotalExpensesAsync(string userId, DateTime? startDate = null, DateTime? endDate = null)
     {
-        var query = _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Transactions
             .Where(t => t.UserId == userId && t.Type == TransactionType.Expense);
 
         if (startDate.HasValue)
@@ -174,7 +181,8 @@ public class TransactionService : ITransactionService
 
     public async Task<Dictionary<int, decimal>> GetExpensesByCategoryAsync(string userId, DateTime? startDate = null, DateTime? endDate = null)
     {
-        var query = _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Transactions
             .Where(t => t.UserId == userId && t.Type == TransactionType.Expense && t.CategoryId.HasValue);
 
         if (startDate.HasValue)
@@ -196,9 +204,10 @@ public class TransactionService : ITransactionService
 
     public async Task<List<TransactionSummary>> GetMonthlyTrendsAsync(string userId, int months = 12)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         var startDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-months + 1);
 
-        var transactions = await _context.Transactions
+        var transactions = await context.Transactions
             .Where(t => t.UserId == userId && t.Date >= startDate && t.Type != TransactionType.Transfer)
             .ToListAsync();
 
@@ -220,7 +229,8 @@ public class TransactionService : ITransactionService
 
     public async Task<List<Transaction>> GetRecentTransactionsAsync(string userId, int count = 10)
     {
-        return await _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Transactions
             .Include(t => t.Account)
             .Include(t => t.Category)
             .Where(t => t.UserId == userId)

@@ -8,16 +8,17 @@ namespace CentuitionApp.Services;
 /// </summary>
 public class BudgetService : IBudgetService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 
-    public BudgetService(ApplicationDbContext context)
+    public BudgetService(IDbContextFactory<ApplicationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<List<Budget>> GetBudgetsAsync(string userId, int? year = null, int? month = null)
     {
-        var query = _context.Budgets
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Budgets
             .Include(b => b.Category)
             .Where(b => b.UserId == userId);
 
@@ -37,7 +38,7 @@ public class BudgetService : IBudgetService
 
         foreach (var budget in budgets)
         {
-            budget.SpentAmount = await CalculateSpentAmountAsync(userId, budget.CategoryId, budget.Year, budget.Month);
+            budget.SpentAmount = await CalculateSpentAmountAsync(context, userId, budget.CategoryId, budget.Year, budget.Month);
         }
 
         return budgets;
@@ -45,14 +46,16 @@ public class BudgetService : IBudgetService
 
     public async Task<Budget?> GetBudgetByIdAsync(int id, string userId)
     {
-        return await _context.Budgets
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Budgets
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
     }
 
     public async Task<Budget?> GetBudgetByCategoryAsync(string userId, int categoryId, int year, int month)
     {
-        return await _context.Budgets
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Budgets
             .Include(b => b.Category)
             .FirstOrDefaultAsync(b => b.UserId == userId 
                 && b.CategoryId == categoryId 
@@ -62,20 +65,22 @@ public class BudgetService : IBudgetService
 
     public async Task<Budget> CreateBudgetAsync(Budget budget)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         budget.CreatedAt = DateTime.UtcNow;
 
-        var spentAmount = await CalculateSpentAmountAsync(budget.UserId, budget.CategoryId, budget.Year, budget.Month);
+        var spentAmount = await CalculateSpentAmountAsync(context, budget.UserId, budget.CategoryId, budget.Year, budget.Month);
         budget.SpentAmount = spentAmount;
 
-        _context.Budgets.Add(budget);
-        await _context.SaveChangesAsync();
+        context.Budgets.Add(budget);
+        await context.SaveChangesAsync();
 
         return budget;
     }
 
     public async Task<Budget> UpdateBudgetAsync(Budget budget)
     {
-        var existing = await _context.Budgets
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.Budgets
             .FirstOrDefaultAsync(b => b.Id == budget.Id && b.UserId == budget.UserId);
 
         if (existing == null)
@@ -88,14 +93,15 @@ public class BudgetService : IBudgetService
         existing.IsActive = budget.IsActive;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return existing;
     }
 
     public async Task<bool> DeleteBudgetAsync(int id, string userId)
     {
-        var budget = await _context.Budgets
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var budget = await context.Budgets
             .FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
 
         if (budget == null)
@@ -103,8 +109,8 @@ public class BudgetService : IBudgetService
             return false;
         }
 
-        _context.Budgets.Remove(budget);
-        await _context.SaveChangesAsync();
+        context.Budgets.Remove(budget);
+        await context.SaveChangesAsync();
 
         return true;
     }
@@ -128,26 +134,40 @@ public class BudgetService : IBudgetService
 
     public async Task UpdateBudgetSpendingAsync(string userId, int categoryId, int year, int month)
     {
-        var budget = await GetBudgetByCategoryAsync(userId, categoryId, year, month);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var budget = await context.Budgets
+            .Include(b => b.Category)
+            .FirstOrDefaultAsync(b => b.UserId == userId 
+                && b.CategoryId == categoryId 
+                && b.Year == year 
+                && b.Month == month);
 
         if (budget != null)
         {
-            budget.SpentAmount = await CalculateSpentAmountAsync(userId, categoryId, year, month);
+            budget.SpentAmount = await CalculateSpentAmountAsync(context, userId, categoryId, year, month);
             budget.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
     }
 
     public async Task CopyBudgetsToNextMonthAsync(string userId, int fromYear, int fromMonth)
     {
-        var sourceBudgets = await GetBudgetsAsync(userId, fromYear, fromMonth);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var sourceBudgets = await context.Budgets
+            .Include(b => b.Category)
+            .Where(b => b.UserId == userId && b.Year == fromYear && b.Month == fromMonth)
+            .ToListAsync();
 
         var nextMonth = fromMonth == 12 ? 1 : fromMonth + 1;
         var nextYear = fromMonth == 12 ? fromYear + 1 : fromYear;
 
         foreach (var sourceBudget in sourceBudgets)
         {
-            var existingBudget = await GetBudgetByCategoryAsync(userId, sourceBudget.CategoryId, nextYear, nextMonth);
+            var existingBudget = await context.Budgets
+                .FirstOrDefaultAsync(b => b.UserId == userId 
+                    && b.CategoryId == sourceBudget.CategoryId 
+                    && b.Year == nextYear 
+                    && b.Month == nextMonth);
 
             if (existingBudget == null)
             {
@@ -163,21 +183,21 @@ public class BudgetService : IBudgetService
                     CreatedAt = DateTime.UtcNow
                 };
 
-                newBudget.SpentAmount = await CalculateSpentAmountAsync(userId, sourceBudget.CategoryId, nextYear, nextMonth);
+                newBudget.SpentAmount = await CalculateSpentAmountAsync(context, userId, sourceBudget.CategoryId, nextYear, nextMonth);
 
-                _context.Budgets.Add(newBudget);
+                context.Budgets.Add(newBudget);
             }
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
-    private async Task<decimal> CalculateSpentAmountAsync(string userId, int categoryId, int year, int month)
+    private async Task<decimal> CalculateSpentAmountAsync(ApplicationDbContext context, string userId, int categoryId, int year, int month)
     {
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
 
-        return await _context.Transactions
+        return await context.Transactions
             .Where(t => t.UserId == userId
                 && t.CategoryId == categoryId
                 && t.Type == TransactionType.Expense

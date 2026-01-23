@@ -18,17 +18,30 @@
                      OnDelete="@HandleDelete"
                      ConfirmDelete="true"
                      Height="600px">
-            <GridToolBarTemplate>
-                <GridSearchBox DebounceDelay="200" Placeholder="Search transactions..." Width="300px" />
-                @if (SelectedTransactions.Any())
-                {
-                    <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Error"
-                                   OnClick="@(() => OnDeleteSelected.InvokeAsync())"
-                                   Icon="@SvgIcon.Trash">
-                        Delete Selected (@SelectedTransactions.Count())
-                    </TelerikButton>
-                }
-            </GridToolBarTemplate>
+            <GridToolBar>
+                <GridToolBarSearchBoxTool PlaceHolder="Search transactions..." Width="300px" />
+                <GridToolBarCustomTool>
+                    @if (SelectedTransactions.Any())
+                    {
+                        <TelerikButton ThemeColor="@ThemeConstants.Button.ThemeColor.Error"
+                                       OnClick="@(() => OnDeleteSelected.InvokeAsync())"
+                                       Icon="@SvgIcon.Trash">
+                            Delete Selected (@SelectedTransactions.Count())
+                        </TelerikButton>
+                    }
+                </GridToolBarCustomTool>
+                <GridToolBarSpacerTool />
+                <GridToolBarAIAssistantTool>
+                    <GridToolBarAIAssistantToolSettings>
+                        <GridToolBarAIAssistantToolPromptSettings OnPromptRequest="@OnAIPromptRequest"
+                                                                  PromptSuggestions="@AIPromptSuggestions">
+                        </GridToolBarAIAssistantToolPromptSettings>
+                    </GridToolBarAIAssistantToolSettings>
+                </GridToolBarAIAssistantTool>
+                <GridToolBarExcelExportTool>
+                    Export to Excel
+                </GridToolBarExcelExportTool>
+            </GridToolBar>
             <GridColumns>
                 <GridCheckboxColumn Width="50px" SelectAll="true" />
                 <GridColumn Field="@nameof(Transaction.Date)" Title="Date" Width="120px">
@@ -64,7 +77,7 @@
                         </div>
                     </Template>
                 </GridColumn>
-                <GridColumn Title="Category" Width="150px">
+                <GridColumn Field="Category.Name" Title="Category" Width="150px">
                     <Template>
                         @{
                             var item = (Transaction)context;
@@ -83,7 +96,7 @@
                         }
                     </Template>
                 </GridColumn>
-                <GridColumn Title="Account" Width="150px">
+                <GridColumn Field="Account.Name" Title="Account" Width="150px">
                     <Template>
                         @{
                             var item = (Transaction)context;

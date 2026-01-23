@@ -8,16 +8,17 @@ namespace CentuitionApp.Services;
 /// </summary>
 public class CategoryService : ICategoryService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 
-    public CategoryService(ApplicationDbContext context)
+    public CategoryService(IDbContextFactory<ApplicationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<List<Category>> GetAllCategoriesAsync(string? userId)
     {
-        return await _context.Categories
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Categories
             .Where(c => c.IsSystem || c.UserId == userId)
             .Where(c => c.IsActive)
             .OrderBy(c => c.Type)
@@ -28,7 +29,8 @@ public class CategoryService : ICategoryService
 
     public async Task<List<Category>> GetCategoriesByTypeAsync(string? userId, CategoryType type)
     {
-        return await _context.Categories
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Categories
             .Where(c => (c.IsSystem || c.UserId == userId) && c.Type == type && c.IsActive)
             .OrderBy(c => c.SortOrder)
             .ThenBy(c => c.Name)
@@ -37,23 +39,26 @@ public class CategoryService : ICategoryService
 
     public async Task<Category?> GetCategoryByIdAsync(int id)
     {
-        return await _context.Categories.FindAsync(id);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Categories.FindAsync(id);
     }
 
     public async Task<Category> CreateCategoryAsync(Category category)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         category.CreatedAt = DateTime.UtcNow;
         category.IsSystem = false;
 
-        _context.Categories.Add(category);
-        await _context.SaveChangesAsync();
+        context.Categories.Add(category);
+        await context.SaveChangesAsync();
 
         return category;
     }
 
     public async Task<Category> UpdateCategoryAsync(Category category)
     {
-        var existing = await _context.Categories.FindAsync(category.Id);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.Categories.FindAsync(category.Id);
 
         if (existing == null)
         {
@@ -78,14 +83,15 @@ public class CategoryService : ICategoryService
             existing.IsActive = category.IsActive;
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return existing;
     }
 
     public async Task<bool> DeleteCategoryAsync(int id, string userId)
     {
-        var category = await _context.Categories
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var category = await context.Categories
             .FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId && !c.IsSystem);
 
         if (category == null)
@@ -93,7 +99,7 @@ public class CategoryService : ICategoryService
             return false;
         }
 
-        var hasTransactions = await _context.Transactions.AnyAsync(t => t.CategoryId == id);
+        var hasTransactions = await context.Transactions.AnyAsync(t => t.CategoryId == id);
 
         if (hasTransactions)
         {
@@ -101,16 +107,17 @@ public class CategoryService : ICategoryService
         }
         else
         {
-            _context.Categories.Remove(category);
+            context.Categories.Remove(category);
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return true;
     }
 
     public async Task<List<Category>> GetSystemCategoriesAsync()
     {
-        return await _context.Categories
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Categories
             .Where(c => c.IsSystem && c.IsActive)
             .OrderBy(c => c.Type)
             .ThenBy(c => c.SortOrder)
@@ -119,7 +126,8 @@ public class CategoryService : ICategoryService
 
     public async Task<List<CategorySpending>> GetCategorySpendingAsync(string userId, DateTime? startDate = null, DateTime? endDate = null)
     {
-        var query = _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Transactions
             .Where(t => t.UserId == userId && t.Type == TransactionType.Expense && t.CategoryId.HasValue);
 
         if (startDate.HasValue)
@@ -145,7 +153,7 @@ public class CategoryService : ICategoryService
             .ToListAsync();
 
         var categoryIds = groupedData.Select(g => g.CategoryId).ToList();
-        var categories = await _context.Categories
+        var categories = await context.Categories
             .Where(c => categoryIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color });
 
@@ -173,7 +181,8 @@ public class CategoryService : ICategoryService
 
     public async Task<List<CategorySpending>> GetIncomeByCategory(string userId, DateTime? startDate = null, DateTime? endDate = null)
     {
-        var query = _context.Transactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var query = context.Transactions
             .Where(t => t.UserId == userId && t.Type == TransactionType.Income && t.CategoryId.HasValue);
 
         if (startDate.HasValue)
@@ -199,7 +208,7 @@ public class CategoryService : ICategoryService
             .ToListAsync();
 
         var categoryIds = groupedData.Select(g => g.CategoryId).ToList();
-        var categories = await _context.Categories
+        var categories = await context.Categories
             .Where(c => categoryIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, c => new { c.Name, c.Color });
 

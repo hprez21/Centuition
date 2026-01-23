@@ -8,16 +8,17 @@ namespace CentuitionApp.Services;
 /// </summary>
 public class AccountService : IAccountService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
 
-    public AccountService(ApplicationDbContext context)
+    public AccountService(IDbContextFactory<ApplicationDbContext> contextFactory)
     {
-        _context = context;
+        _contextFactory = contextFactory;
     }
 
     public async Task<List<Account>> GetAllAccountsAsync(string userId)
     {
-        return await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Accounts
             .Where(a => a.UserId == userId)
             .OrderBy(a => a.AccountType)
             .ThenBy(a => a.Name)
@@ -26,13 +27,15 @@ public class AccountService : IAccountService
 
     public async Task<Account?> GetAccountByIdAsync(int id, string userId)
     {
-        return await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Accounts
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
     }
 
     public async Task<Account> CreateAccountAsync(Account account)
     {        
-        var existingAccount = await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existingAccount = await context.Accounts
             .AnyAsync(a => a.UserId == account.UserId && a.Name == account.Name);
         
         if (existingAccount)
@@ -45,8 +48,8 @@ public class AccountService : IAccountService
         
         try
         {
-            _context.Accounts.Add(account);
-            await _context.SaveChangesAsync();
+            context.Accounts.Add(account);
+            await context.SaveChangesAsync();
         }
         catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true ||
                                             ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true)
@@ -59,7 +62,8 @@ public class AccountService : IAccountService
 
     public async Task<Account> UpdateAccountAsync(Account account)
     {
-        var existing = await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.Accounts
             .FirstOrDefaultAsync(a => a.Id == account.Id && a.UserId == account.UserId);
 
         if (existing == null)
@@ -67,7 +71,7 @@ public class AccountService : IAccountService
             throw new InvalidOperationException("Account not found.");
         }
         
-        var duplicateName = await _context.Accounts
+        var duplicateName = await context.Accounts
             .AnyAsync(a => a.UserId == account.UserId && a.Name == account.Name && a.Id != account.Id);
         
         if (duplicateName)
@@ -87,7 +91,7 @@ public class AccountService : IAccountService
 
         try
         {
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
         catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("duplicate", StringComparison.OrdinalIgnoreCase) == true ||
                                             ex.InnerException?.Message.Contains("unique", StringComparison.OrdinalIgnoreCase) == true)
@@ -100,7 +104,8 @@ public class AccountService : IAccountService
 
     public async Task<bool> DeleteAccountAsync(int id, string userId)
     {
-        var account = await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var account = await context.Accounts
             .FirstOrDefaultAsync(a => a.Id == id && a.UserId == userId);
 
         if (account == null)
@@ -108,7 +113,7 @@ public class AccountService : IAccountService
             return false;
         }
         
-        var hasTransactions = await _context.Transactions
+        var hasTransactions = await context.Transactions
             .AnyAsync(t => t.AccountId == id || t.DestinationAccountId == id);
 
         if (hasTransactions)
@@ -118,23 +123,25 @@ public class AccountService : IAccountService
         }
         else
         {
-            _context.Accounts.Remove(account);
+            context.Accounts.Remove(account);
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
         return true;
     }
 
     public async Task<decimal> GetTotalBalanceAsync(string userId)
     {
-        return await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Accounts
             .Where(a => a.UserId == userId && a.IsActive && a.IncludeInTotal)
             .SumAsync(a => a.CurrentBalance);
     }
 
     public async Task<Dictionary<AccountType, decimal>> GetBalancesByTypeAsync(string userId)
     {
-        return await _context.Accounts
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.Accounts
             .Where(a => a.UserId == userId && a.IsActive)
             .GroupBy(a => a.AccountType)
             .ToDictionaryAsync(g => g.Key, g => g.Sum(a => a.CurrentBalance));
@@ -142,7 +149,8 @@ public class AccountService : IAccountService
 
     public async Task UpdateAccountBalanceAsync(int accountId, decimal amount, bool isAddition)
     {
-        var account = await _context.Accounts.FindAsync(accountId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var account = await context.Accounts.FindAsync(accountId);
         
         if (account != null)
         {
@@ -156,7 +164,7 @@ public class AccountService : IAccountService
             }
             
             account.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+            await context.SaveChangesAsync();
         }
     }
 }

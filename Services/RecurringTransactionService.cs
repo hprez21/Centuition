@@ -8,18 +8,19 @@ namespace CentuitionApp.Services;
 /// </summary>
 public class RecurringTransactionService : IRecurringTransactionService
 {
-    private readonly ApplicationDbContext _context;
+    private readonly IDbContextFactory<ApplicationDbContext> _contextFactory;
     private readonly ITransactionService _transactionService;
 
-    public RecurringTransactionService(ApplicationDbContext context, ITransactionService transactionService)
+    public RecurringTransactionService(IDbContextFactory<ApplicationDbContext> contextFactory, ITransactionService transactionService)
     {
-        _context = context;
+        _contextFactory = contextFactory;
         _transactionService = transactionService;
     }
 
     public async Task<List<RecurringTransaction>> GetRecurringTransactionsAsync(string userId)
     {
-        return await _context.RecurringTransactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.RecurringTransactions
             .Include(r => r.Account)
             .Include(r => r.Category)
             .Where(r => r.UserId == userId)
@@ -29,7 +30,8 @@ public class RecurringTransactionService : IRecurringTransactionService
 
     public async Task<RecurringTransaction?> GetRecurringTransactionByIdAsync(int id, string userId)
     {
-        return await _context.RecurringTransactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        return await context.RecurringTransactions
             .Include(r => r.Account)
             .Include(r => r.Category)
             .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
@@ -37,18 +39,20 @@ public class RecurringTransactionService : IRecurringTransactionService
 
     public async Task<RecurringTransaction> CreateRecurringTransactionAsync(RecurringTransaction recurring)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         recurring.CreatedAt = DateTime.UtcNow;
         recurring.NextDueDate = recurring.StartDate;
 
-        _context.RecurringTransactions.Add(recurring);
-        await _context.SaveChangesAsync();
+        context.RecurringTransactions.Add(recurring);
+        await context.SaveChangesAsync();
 
         return recurring;
     }
 
     public async Task<RecurringTransaction> UpdateRecurringTransactionAsync(RecurringTransaction recurring)
     {
-        var existing = await _context.RecurringTransactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var existing = await context.RecurringTransactions
             .FirstOrDefaultAsync(r => r.Id == recurring.Id && r.UserId == recurring.UserId);
 
         if (existing == null)
@@ -74,14 +78,15 @@ public class RecurringTransactionService : IRecurringTransactionService
             existing.NextDueDate = await CalculateNextDueDateAsync(existing);
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
 
         return existing;
     }
 
     public async Task<bool> DeleteRecurringTransactionAsync(int id, string userId)
     {
-        var recurring = await _context.RecurringTransactions
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var recurring = await context.RecurringTransactions
             .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
 
         if (recurring == null)
@@ -89,17 +94,18 @@ public class RecurringTransactionService : IRecurringTransactionService
             return false;
         }
 
-        _context.RecurringTransactions.Remove(recurring);
-        await _context.SaveChangesAsync();
+        context.RecurringTransactions.Remove(recurring);
+        await context.SaveChangesAsync();
 
         return true;
     }
 
     public async Task<List<RecurringTransaction>> GetDueRecurringTransactionsAsync(string userId)
     {
+        await using var context = await _contextFactory.CreateDbContextAsync();
         var today = DateTime.Today;
 
-        return await _context.RecurringTransactions
+        return await context.RecurringTransactions
             .Include(r => r.Account)
             .Include(r => r.Category)
             .Where(r => r.UserId == userId
@@ -112,7 +118,18 @@ public class RecurringTransactionService : IRecurringTransactionService
 
     public async Task ProcessDueRecurringTransactionsAsync(string userId)
     {
-        var dueTransactions = await GetDueRecurringTransactionsAsync(userId);
+        await using var context = await _contextFactory.CreateDbContextAsync();
+        var today = DateTime.Today;
+        
+        var dueTransactions = await context.RecurringTransactions
+            .Include(r => r.Account)
+            .Include(r => r.Category)
+            .Where(r => r.UserId == userId
+                && r.IsActive
+                && r.NextDueDate.HasValue
+                && r.NextDueDate.Value <= today
+                && (!r.EndDate.HasValue || r.EndDate.Value >= today))
+            .ToListAsync();
 
         foreach (var recurring in dueTransactions)
         {
@@ -139,7 +156,7 @@ public class RecurringTransactionService : IRecurringTransactionService
             recurring.UpdatedAt = DateTime.UtcNow;
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public Task<DateTime> CalculateNextDueDateAsync(RecurringTransaction recurring)
